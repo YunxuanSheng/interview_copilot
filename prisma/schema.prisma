@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  phone     String?
+  location  String?
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  interviewSchedules InterviewSchedule[]
+  personalExperiences PersonalExperience[]
+  accounts          Account[]
+  sessions          Session[]
+  educations        Education[]
+  workExperiences   WorkExperience[]
+  skills           Skill[]
+
+  @@map("users")
+}
+
+model Education {
+  id          String   @id @default(cuid())
+  userId      String
+  school      String
+  degree      String
+  major       String?
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("educations")
+}
+
+model WorkExperience {
+  id          String   @id @default(cuid())
+  userId      String
+  company     String
+  position    String
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+  achievements String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("work_experiences")
+}
+
+model Skill {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  level     String   // beginner, intermediate, advanced, expert
+  category  String   // technical, language, soft_skill, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("skills")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model InterviewSchedule {
+  id             String   @id @default(cuid())
+  userId         String
+  company        String
+  position       String
+  department     String?
+  interviewDate  DateTime
+  interviewLink  String?
+  round          Int      @default(1)
+  tags           String?
+  notes          String?
+  status         String   @default("scheduled") // scheduled, completed, cancelled
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewRecords InterviewRecord[]
+
+  @@map("interview_schedules")
+}
+
+model InterviewRecord {
+  id             String   @id @default(cuid())
+  scheduleId     String
+  audioFilePath  String?
+  transcript     String?
+  aiAnalysis     String?
+  overallScore   Int?
+  feedback       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  schedule       InterviewSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  questions      InterviewQuestion[]
+
+  @@map("interview_records")
+}
+
+model InterviewQuestion {
+  id             String   @id @default(cuid())
+  recordId       String
+  questionText   String
+  userAnswer     String?
+  aiEvaluation   String?
+  score          Int?
+  questionType   String?  // algorithm, system_design, behavioral, etc.
+  createdAt      DateTime @default(now())
+
+  // Relations
+  record         InterviewRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("interview_questions")
+}
+
+model PersonalExperience {
+  id           String   @id @default(cuid())
+  userId       String
+  company      String
+  questionType String
+  questionText String
+  answerText   String?
+  difficulty   String?  // easy, medium, hard
+  tags         String?  // 手动添加的标签，逗号分隔
+  clusterId    String?  // 相似问题聚类ID
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("personal_experiences")
+}
