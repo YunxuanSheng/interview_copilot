@@ -42,7 +42,7 @@ interface InterviewRecord {
 
 export default function EditInterviewPage({ params }: { params: { id: string } }) {
   const { data: session } = useSession()
-  const router = useRouter()
+  const _router = useRouter()
   const [record, setRecord] = useState<InterviewRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)

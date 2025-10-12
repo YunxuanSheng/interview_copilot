@@ -16,7 +16,16 @@ export default function EmailParsePage() {
   const router = useRouter()
   const [emailContent, setEmailContent] = useState("")
   const [isParsing, setIsParsing] = useState(false)
-  const [parsedData, setParsedData] = useState<any>(null)
+  const [parsedData, setParsedData] = useState<{
+    company: string
+    position: string
+    department?: string
+    interviewDate: string
+    interviewLink?: string
+    round: number
+    tags?: string
+    notes?: string
+  } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const handleParseEmail = async () => {

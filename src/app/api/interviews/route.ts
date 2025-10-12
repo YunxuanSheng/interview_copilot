@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -143,7 +143,12 @@ export async function POST(request: NextRequest) {
         aiAnalysis,
         feedback,
         questions: {
-          create: questions?.map((q: any) => ({
+          create: questions?.map((q: {
+            questionText: string
+            userAnswer?: string
+            aiEvaluation?: string
+            questionType?: string
+          }) => ({
             questionText: q.questionText,
             userAnswer: q.userAnswer,
             aiEvaluation: q.aiEvaluation,

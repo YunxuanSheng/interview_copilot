@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 解析邮件内容
-async function parseEmail(emailContent: string) {
+async function parseEmail(_emailContent: string) {
   // 模拟AI解析邮件
   const mockResult = {
     company: "腾讯",
@@ -55,7 +55,7 @@ async function parseEmail(emailContent: string) {
 }
 
 // 语音转文字
-async function transcribeAudio(audioData: any) {
+async function transcribeAudio(_audioData: unknown) {
   // 模拟语音转文字
   const mockTranscript = `
     面试官：你好，请先自我介绍一下。
@@ -76,7 +76,7 @@ async function transcribeAudio(audioData: any) {
 }
 
 // 分析面试内容
-async function analyzeInterview(interviewData: any) {
+async function analyzeInterview(_interviewData: { transcript: string }) {
   // 模拟AI分析
   const mockAnalysis = {
     strengths: [

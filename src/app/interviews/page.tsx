@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Plus, Search, Calendar, Building, Star, MessageSquare, Mic, TrendingUp, Users, Target } from "lucide-react"
+import { FileText, Plus, Search, Calendar, Building, MessageSquare, Mic, TrendingUp, Users, Target } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -196,7 +196,11 @@ export default function InterviewsPage() {
     company.averageScore = companyScoreCount > 0 ? companyTotalScore / companyScoreCount : 0
   })
 
-  const getProgressStatus = (position: any) => {
+  const getProgressStatus = (position: {
+    completedRounds: number
+    totalRounds: number
+    passedRounds: number
+  }) => {
     const { completedRounds, totalRounds, passedRounds } = position
     
     if (completedRounds === 0) {
@@ -220,11 +224,17 @@ export default function InterviewsPage() {
     return { status: "进行中", color: "bg-yellow-100 text-yellow-800", icon: "⏳" }
   }
 
-  const getCompanyStatus = (company: any) => {
-    const positions = Array.from(company.positions.values()) as any[]
+  const getCompanyStatus = (company: {
+    positions: Map<string, {
+      completedRounds: number
+      totalRounds: number
+      passedRounds: number
+    }>
+  }) => {
+    const positions = Array.from(company.positions.values())
     const totalPositions = positions.length
-    const completedPositions = positions.filter((p: any) => p.completedRounds > 0).length
-    const passedPositions = positions.filter((p: any) => p.passedRounds === p.totalRounds && p.totalRounds > 0).length
+    const completedPositions = positions.filter(p => p.completedRounds > 0).length
+    const passedPositions = positions.filter(p => p.passedRounds === p.totalRounds && p.totalRounds > 0).length
     
     if (completedPositions === 0) {
       return { status: "投递中", color: "bg-gray-100 text-gray-800", icon: "📝" }

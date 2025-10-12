@@ -61,7 +61,7 @@ const difficultyLevels = [
 export default function ExperienceDetailPage() {
   const { data: session } = useSession()
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const [experience, setExperience] = useState<PersonalExperience | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -557,7 +557,7 @@ export default function ExperienceDetailPage() {
                         try {
                           await navigator.clipboard.writeText(code)
                           toast.success("代码已复制到剪贴板！")
-                        } catch (err) {
+                        } catch (_err) {
                           toast.error("复制失败，请手动复制")
                         }
                       }}

@@ -28,7 +28,8 @@ import {
   FileText,
   Clock,
   Award,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
@@ -79,7 +80,7 @@ const questionTypes = [
 export default function InterviewDetailPage() {
   const { data: session } = useSession()
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const [record, setRecord] = useState<InterviewRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)

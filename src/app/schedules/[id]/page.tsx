@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, Building, Users, MapPin, Clock, ExternalLink, Edit, Trash2, Mail, Phone, Globe } from "lucide-react"
+import { ArrowLeft, Calendar, Building, Users, ExternalLink, Edit, Trash2, Mail } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -28,7 +28,7 @@ interface InterviewSchedule {
 export default function ScheduleDetailPage() {
   const { data: session } = useSession()
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const [schedule, setSchedule] = useState<InterviewSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Building, FileText, Star, Plus, Trash2, Mic, Upload, Sparkles } from "lucide-react"
+import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -39,8 +39,15 @@ export default function NewInterviewPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [audioFile, setAudioFile] = useState<File | null>(null)
-  const [audioUrl, setAudioUrl] = useState<string>("")
-  const [analysis, setAnalysis] = useState<any>(null)
+  const [_audioUrl, setAudioUrl] = useState<string>("")
+  const [_analysis, setAnalysis] = useState<{
+    questionAnalysis: Array<{
+      question: string
+      answer: string
+      evaluation: string
+    }>
+    suggestions: string[]
+  } | null>(null)
   const [formData, setFormData] = useState({
     scheduleId: "",
     transcript: "",
@@ -141,7 +148,11 @@ export default function NewInterviewPage() {
         setAnalysis(result.data)
         
         // 将AI分析的问题添加到questions数组
-        const analyzedQuestions: Question[] = result.data.questionAnalysis.map((q: any, index: number) => ({
+        const analyzedQuestions: Question[] = result.data.questionAnalysis.map((q: {
+          question: string
+          answer: string
+          evaluation: string
+        }, index: number) => ({
           id: Date.now().toString() + index,
           questionText: q.question,
           userAnswer: q.answer,
@@ -632,7 +643,7 @@ export default function NewInterviewPage() {
                 <div className="text-center py-8 text-gray-500">
                   <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p>暂无面试题目</p>
-                  <p className="text-sm">点击"添加题目"开始记录</p>
+                  <p className="text-sm">点击&ldquo;添加题目&rdquo;开始记录</p>
                 </div>
               )}
             </CardContent>

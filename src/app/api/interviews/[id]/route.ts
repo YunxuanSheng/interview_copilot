@@ -339,7 +339,13 @@ export async function PUT(
       // 创建新问题
       if (questions && questions.length > 0) {
         await tx.interviewQuestion.createMany({
-          data: questions.map((q: any) => ({
+          data: questions.map((q: {
+            questionText: string
+            userAnswer?: string
+            aiEvaluation?: string
+            questionType?: string
+            score?: number
+          }) => ({
             recordId,
             questionText: q.questionText,
             userAnswer: q.userAnswer,

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -76,7 +76,14 @@ export async function PUT(request: NextRequest) {
       // 创建新的教育经历
       if (educations && educations.length > 0) {
         await tx.education.createMany({
-          data: educations.map((edu: any) => ({
+          data: educations.map((edu: {
+            school: string
+            degree: string
+            major?: string
+            startDate: string
+            endDate?: string
+            description?: string
+          }) => ({
             userId: session.user.id,
             school: edu.school,
             degree: edu.degree,
@@ -91,7 +98,14 @@ export async function PUT(request: NextRequest) {
       // 创建新的工作经历
       if (workExperiences && workExperiences.length > 0) {
         await tx.workExperience.createMany({
-          data: workExperiences.map((work: any) => ({
+          data: workExperiences.map((work: {
+            company: string
+            position: string
+            startDate: string
+            endDate?: string
+            description?: string
+            achievements?: string
+          }) => ({
             userId: session.user.id,
             company: work.company,
             position: work.position,
@@ -106,7 +120,11 @@ export async function PUT(request: NextRequest) {
       // 创建新的技能
       if (skills && skills.length > 0) {
         await tx.skill.createMany({
-          data: skills.map((skill: any) => ({
+          data: skills.map((skill: {
+            name: string
+            level: string
+            category: string
+          }) => ({
             userId: session.user.id,
             name: skill.name,
             level: skill.level,

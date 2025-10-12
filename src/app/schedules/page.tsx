@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Plus, Search, Clock, MapPin, Users, Mail, CalendarDays, List, Filter, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react"
+import { Calendar, Plus, Search, Clock, Users, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, X } from "lucide-react"
 import Link from "next/link"
-import { format, addDays, isToday, isTomorrow, isYesterday, startOfDay, endOfDay } from "date-fns"
+import { format, addDays, isToday, isTomorrow, isYesterday, startOfDay } from "date-fns"
 import { zhCN } from "date-fns/locale"
-// @ts-ignore
+// @ts-expect-error - react-big-calendar types are not fully compatible
 import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
@@ -42,11 +42,14 @@ export default function SchedulesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("date")
   const [sortOrder, setSortOrder] = useState("asc")
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [, setSelectedDate] = useState(new Date())
   const [currentDate, setCurrentDate] = useState(new Date())
   const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
-  const [interviewRecords, setInterviewRecords] = useState<any[]>([])
+  const [interviewRecords, setInterviewRecords] = useState<Array<{
+    scheduleId: string
+    id: string
+  }>>([])
   const [isHoveringCard, setIsHoveringCard] = useState(false)
 
   useEffect(() => {
@@ -205,7 +208,9 @@ export default function SchedulesPage() {
     return interviewRecords.find(record => record.scheduleId === scheduleId)
   }
 
-  const eventStyleGetter = (event: any) => {
+  const eventStyleGetter = (event: {
+    resource?: InterviewSchedule
+  }) => {
     const status = event.resource?.status
     let backgroundColor = '#3174ad'
     
@@ -233,16 +238,18 @@ export default function SchedulesPage() {
     }
   }
 
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date)
-  }
-
   const handleNavigate = (date: Date) => {
     setCurrentDate(date)
   }
 
   // 自定义事件组件
-  const EventComponent = ({ event }: { event: any }) => {
+  const EventComponent = ({ event }: { event: {
+    id: string
+    title: string
+    start: Date
+    end: Date
+    resource: InterviewSchedule
+  } }) => {
     const handleMouseEnter = (e: React.MouseEvent) => {
       const rect = e.currentTarget.getBoundingClientRect()
       const viewportWidth = window.innerWidth
@@ -388,7 +395,13 @@ export default function SchedulesPage() {
                   components={{
                     event: EventComponent
                   }}
-                  onSelectEvent={(event: any) => {
+                  onSelectEvent={(event: {
+                    id: string
+                    title: string
+                    start: Date
+                    end: Date
+                    resource: InterviewSchedule
+                  }) => {
                     // 可以添加点击事件的处理
                   }}
                   messages={{

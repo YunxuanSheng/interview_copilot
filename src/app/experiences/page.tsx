@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Plus, Search, Filter, Code, Cpu, MessageSquare, Star, Tag, Users, Layers, Eye } from "lucide-react"
+import { BookOpen, Plus, Search, Code, Cpu, MessageSquare, Star, Tag, Users, Layers } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -100,7 +100,7 @@ export default function ExperiencesPage() {
   }, {} as Record<string, PersonalExperience[]>)
 
   // 相似问题聚类
-  const clusteredExperiences = filteredExperiences.reduce((acc, experience) => {
+  const _clusteredExperiences = filteredExperiences.reduce((acc, experience) => {
     const clusterKey = experience.clusterId || `single_${experience.id}`
     if (!acc[clusterKey]) {
       acc[clusterKey] = []
