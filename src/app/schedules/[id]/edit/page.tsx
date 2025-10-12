@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -50,9 +50,9 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
     if (session && params.id) {
       fetchSchedule()
     }
-  }, [session, params.id])
+  }, [session, params.id, fetchSchedule])
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = useCallback(async () => {
     try {
       const response = await fetch(`/api/schedules/${params.id}`)
       if (response.ok) {
@@ -86,7 +86,7 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id, router])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({

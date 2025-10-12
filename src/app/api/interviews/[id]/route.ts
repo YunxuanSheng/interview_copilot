@@ -7,7 +7,7 @@ import { Session } from "next-auth"
 // 获取单个面试记录详情
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const recordId = params.id
+    const { id: recordId } = await params
 
     // 如果是demo用户，返回模拟数据
     if (session.user.email === "demo@example.com") {
@@ -251,7 +251,7 @@ export async function GET(
 // 更新面试记录
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -260,7 +260,7 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const recordId = params.id
+    const { id: recordId } = await params
     const body = await request.json()
     const { transcript, feedback, questions } = body
 
@@ -396,7 +396,7 @@ export async function PUT(
 // 删除面试记录
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -405,7 +405,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const recordId = params.id
+    const { id: recordId } = await params
 
     // 如果是demo用户，返回成功
     if (session.user.email === "demo@example.com") {

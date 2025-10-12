@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -13,6 +13,8 @@ export async function GET(
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const { id: scheduleId } = await params
 
     // 如果是demo用户，返回模拟数据
     if (session.user.email === "demo@example.com") {
@@ -103,7 +105,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -111,6 +113,8 @@ export async function PUT(
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const { id: scheduleId } = await params
 
     const body = await request.json()
     const {
@@ -173,7 +177,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -182,9 +186,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id: scheduleId } = await params
+
     await prisma.interviewSchedule.delete({
       where: {
-        id: params.id,
+        id: scheduleId,
         userId: session.user.id
       }
     })

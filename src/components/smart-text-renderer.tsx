@@ -23,7 +23,7 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
       setCopiedCode(code)
       toast.success("代码已复制到剪贴板！")
       setTimeout(() => setCopiedCode(null), 2000)
-    } catch (_err) {
+    } catch {
       toast.error("复制失败，请手动复制")
     }
   }

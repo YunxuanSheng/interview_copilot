@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 // 获取单个面经详情
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const experienceId = params.id
+    const { id: experienceId } = await params
 
     // 如果是demo用户，返回模拟数据
     if (session.user.email === "demo@example.com") {

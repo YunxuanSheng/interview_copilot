@@ -42,7 +42,7 @@ export default function SchedulesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("date")
   const [sortOrder, setSortOrder] = useState("asc")
-  const [, setSelectedDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const [currentDate, setCurrentDate] = useState(new Date())
   const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
@@ -148,11 +148,11 @@ export default function SchedulesPage() {
   }, {} as Record<string, InterviewSchedule[]>)
 
   // 即将到来的面试（今天及以后）
-  const upcomingSchedules = schedules.filter(schedule => {
-    const scheduleDate = new Date(schedule.interviewDate)
-    const today = startOfDay(new Date())
-    return scheduleDate >= today && schedule.status === "scheduled"
-  }).sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime())
+  // const upcomingSchedules = schedules.filter(schedule => {
+  //   const scheduleDate = new Date(schedule.interviewDate)
+  //   const today = startOfDay(new Date())
+  //   return scheduleDate >= today && schedule.status === "scheduled"
+  // }).sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime())
 
   // 日历事件数据
   const calendarEvents = schedules.map(schedule => {
@@ -395,7 +395,7 @@ export default function SchedulesPage() {
                   components={{
                     event: EventComponent
                   }}
-                  onSelectEvent={(event: {
+                  onSelectEvent={(_event: {
                     id: string
                     title: string
                     start: Date

@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +28,7 @@ interface InterviewSchedule {
 export default function ScheduleDetailPage() {
   const { data: session } = useSession()
   const params = useParams()
-  const _router = useRouter()
+  const router = useRouter()
   const [schedule, setSchedule] = useState<InterviewSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -37,9 +37,9 @@ export default function ScheduleDetailPage() {
     if (session && params.id) {
       fetchSchedule()
     }
-  }, [session, params.id])
+  }, [session, params.id, fetchSchedule])
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = useCallback(async () => {
     try {
       const response = await fetch(`/api/schedules/${params.id}`)
       if (response.ok) {
@@ -72,7 +72,7 @@ export default function ScheduleDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id, session?.user?.email, router])
 
   const handleDelete = async () => {
     if (!schedule || !confirm("确定要删除这个面试安排吗？")) return
