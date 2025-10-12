@@ -243,7 +243,7 @@ export default function SchedulesPage() {
   }
 
   // 自定义事件组件
-  const EventComponent = ({ event }: { event: {
+  const EventComponent = ({ event: _event }: { event: {
     id: string
     title: string
     start: Date

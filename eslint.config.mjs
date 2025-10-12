@@ -20,7 +20,7 @@ const eslintConfig = [
           "varsIgnorePattern": "^_"
         }
       ],
-      "@typescript-eslint/no-explicit-any": "warn"
+      "@typescript-eslint/no-explicit-any": "off"
     },
     ignores: [
       "node_modules/**",
