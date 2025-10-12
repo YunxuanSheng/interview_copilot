@@ -73,7 +73,7 @@ export async function GET(
         }
       ]
 
-      const schedule = mockSchedules.find(s => s.id === params.id)
+      const schedule = mockSchedules.find(s => s.id === scheduleId)
       
       if (!schedule) {
         return NextResponse.json({ error: "Schedule not found" }, { status: 404 })
@@ -84,7 +84,7 @@ export async function GET(
 
     const schedule = await prisma.interviewSchedule.findFirst({
       where: {
-        id: params.id,
+        id: scheduleId,
         userId: session.user.id
       }
     })
@@ -132,7 +132,7 @@ export async function PUT(
     // 如果是demo用户，返回模拟更新后的数据
     if (session.user.email === "demo@example.com") {
       const updatedSchedule = {
-        id: params.id,
+        id: scheduleId,
         company: company || "腾讯",
         position: position || "前端开发工程师",
         department: department || "技术部",
@@ -149,7 +149,7 @@ export async function PUT(
 
     const schedule = await prisma.interviewSchedule.update({
       where: {
-        id: params.id,
+        id: scheduleId,
         userId: session.user.id
       },
       data: {

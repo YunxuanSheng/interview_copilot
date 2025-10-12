@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Session } from "next-auth"
 
 // 获取单个面经详情
 export async function GET(
@@ -9,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions) as Session | null
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -127,16 +128,16 @@ export async function GET(
 // 更新面经
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions) as Session | null
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const experienceId = params.id
+    const { id: experienceId } = await params
     const body = await request.json()
     const {
       company,
@@ -196,16 +197,21 @@ export async function PUT(
       return NextResponse.json({ error: "Experience not found" }, { status: 404 })
     }
 
+    const updateData: any = {
+      company,
+      questionType,
+      questionText,
+      answerText,
+      difficulty
+    }
+    
+    if (tags !== undefined) {
+      updateData.tags = tags
+    }
+
     const updatedExperience = await prisma.personalExperience.update({
       where: { id: experienceId },
-      data: {
-        company,
-        questionType,
-        questionText,
-        answerText,
-        difficulty,
-        tags
-      }
+      data: updateData
     })
 
     return NextResponse.json(updatedExperience)
@@ -221,16 +227,16 @@ export async function PUT(
 // 删除面经
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions) as Session | null
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const experienceId = params.id
+    const { id: experienceId } = await params
 
     // 如果是demo用户，返回成功
     if (session.user.email === "demo@example.com") {
