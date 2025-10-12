@@ -1,11 +1,11 @@
-import type { NextAuthOptions } from "next-auth"
+import { AuthOptions } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 // import bcrypt from "bcryptjs"
 
-export const authOptions: NextAuthOptions = {
+export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma) as unknown,
   providers: [
     // Demo模式跳过认证

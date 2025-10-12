@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -78,13 +78,7 @@ export default function ExperienceDetailPage() {
     tags: ""
   })
 
-  useEffect(() => {
-    if (session && params.id) {
-      fetchExperience()
-    }
-  }, [session, params.id])
-
-  const fetchExperience = async () => {
+  const fetchExperience = useCallback(async () => {
     try {
       const response = await fetch(`/api/experiences/${params.id}`)
       if (!response.ok) {
@@ -106,7 +100,13 @@ export default function ExperienceDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (session && params.id) {
+      fetchExperience()
+    }
+  }, [session, params.id, fetchExperience])
 
   const handleSave = async () => {
     if (!experience) return

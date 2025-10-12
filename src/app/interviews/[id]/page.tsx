@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -86,13 +86,7 @@ export default function InterviewDetailPage() {
     feedback: ""
   })
 
-  useEffect(() => {
-    if (session && params.id) {
-      fetchRecord()
-    }
-  }, [session, params.id])
-
-  const fetchRecord = async () => {
+  const fetchRecord = useCallback(async () => {
     try {
       const response = await fetch(`/api/interviews/${params.id}`)
       if (!response.ok) {
@@ -119,7 +113,13 @@ export default function InterviewDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (session && params.id) {
+      fetchRecord()
+    }
+  }, [session, params.id, fetchRecord])
 
   const handleSave = async () => {
     if (!record) return

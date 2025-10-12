@@ -61,7 +61,7 @@ export default function SchedulesPage() {
 
   // 点击外部关闭hover卡片
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (_event: MouseEvent) => {
       if (hoveredEvent && !isHoveringCard) {
         setHoveredEvent(null)
       }
@@ -243,14 +243,14 @@ export default function SchedulesPage() {
   }
 
   // 自定义事件组件
-  const EventComponent = ({ event: _event }: { event: {
+  const EventComponent = ({ event }: { event: {
     id: string
     title: string
     start: Date
     end: Date
     resource: InterviewSchedule
   } }) => {
-    const handleMouseEnter = (e: React.MouseEvent) => {
+    const handleMouseEnter = (e: React.MouseEvent, eventData: { resource: InterviewSchedule }) => {
       const rect = e.currentTarget.getBoundingClientRect()
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
@@ -278,7 +278,7 @@ export default function SchedulesPage() {
       }
       
       setHoverPosition({ x, y })
-      setHoveredEvent(event.resource)
+      setHoveredEvent(eventData.resource)
     }
 
     const handleMouseLeave = () => {
@@ -292,7 +292,7 @@ export default function SchedulesPage() {
 
     return (
       <div
-        onMouseEnter={handleMouseEnter}
+        onMouseEnter={(e) => handleMouseEnter(e, { resource: event.resource })}
         onMouseLeave={handleMouseLeave}
         className="w-full h-full cursor-pointer"
       >

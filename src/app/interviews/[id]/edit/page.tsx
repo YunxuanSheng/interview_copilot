@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -50,13 +50,7 @@ export default function EditInterviewPage({ params }: { params: { id: string } }
   const [transcript, setTranscript] = useState("")
   const [feedback, setFeedback] = useState("")
 
-  useEffect(() => {
-    if (session && params.id) {
-      fetchRecord()
-    }
-  }, [session, params.id])
-
-  const fetchRecord = async () => {
+  const fetchRecord = useCallback(async () => {
     try {
       const response = await fetch(`/api/interviews/${params.id}`)
       if (response.ok) {
@@ -75,7 +69,13 @@ export default function EditInterviewPage({ params }: { params: { id: string } }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id, router])
+
+  useEffect(() => {
+    if (session && params.id) {
+      fetchRecord()
+    }
+  }, [session, params.id, fetchRecord])
 
   const handleQuestionChange = (index: number, field: keyof InterviewQuestion, value: string | number) => {
     const updatedQuestions = [...questions]

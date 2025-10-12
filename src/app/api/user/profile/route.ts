@@ -21,11 +21,11 @@ export async function GET(_request: NextRequest) {
       }
     })
 
-    if (!user) {
+    if (!_user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    return NextResponse.json(_user)
   } catch (error) {
     console.error("Profile API error:", error)
     return NextResponse.json(
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     // 使用事务更新用户信息和相关数据
     const updatedUser = await prisma.$transaction(async (tx) => {
       // 更新用户基本信息
-      const user = await tx.user.update({
+      const _user = await tx.user.update({
         where: { id: session.user.id },
         data: {
           name,
