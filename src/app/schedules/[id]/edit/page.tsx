@@ -46,12 +46,6 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
     status: "scheduled"
   })
 
-  useEffect(() => {
-    if (session && params.id) {
-      fetchSchedule()
-    }
-  }, [session, params.id, fetchSchedule])
-
   const fetchSchedule = useCallback(async () => {
     try {
       const response = await fetch(`/api/schedules/${params.id}`)
@@ -87,6 +81,12 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
       setIsLoading(false)
     }
   }, [params.id, router])
+
+  useEffect(() => {
+    if (session && params.id) {
+      fetchSchedule()
+    }
+  }, [session, params.id, fetchSchedule])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({

@@ -27,17 +27,11 @@ interface InterviewSchedule {
 
 export default function ScheduleDetailPage() {
   const { data: session } = useSession()
-  const params = useParams()
+  const params = useParams<{ id: string }>()
   const router = useRouter()
   const [schedule, setSchedule] = useState<InterviewSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  useEffect(() => {
-    if (session && params.id) {
-      fetchSchedule()
-    }
-  }, [session, params.id, fetchSchedule])
 
   const fetchSchedule = useCallback(async () => {
     try {
@@ -73,6 +67,12 @@ export default function ScheduleDetailPage() {
       setIsLoading(false)
     }
   }, [params.id, session?.user?.email, router])
+
+  useEffect(() => {
+    if (session && params.id) {
+      fetchSchedule()
+    }
+  }, [session, params.id, fetchSchedule])
 
   const handleDelete = async () => {
     if (!schedule || !confirm("确定要删除这个面试安排吗？")) return
