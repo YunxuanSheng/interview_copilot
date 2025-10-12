@@ -1,12 +1,11 @@
-import type { AuthOptions } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 // import bcrypt from "bcryptjs"
 
-export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma) as unknown,
+export const authOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     // Demo模式跳过认证
     CredentialsProvider({
@@ -79,7 +78,7 @@ export const authOptions: AuthOptions = {
     })
   ],
   session: {
-    strategy: "jwt"
+    strategy: "jwt" as const
   },
   pages: {
     signIn: "/auth/signin",
