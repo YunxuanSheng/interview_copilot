@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, Plus, Search, Clock, Users, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, X } from "lucide-react"
 import Link from "next/link"
-import { format, addDays, isToday, isTomorrow, isYesterday, startOfDay } from "date-fns"
+import { format, addDays, isToday, isTomorrow, isYesterday } from "date-fns"
 import { zhCN } from "date-fns/locale"
 // @ts-expect-error - react-big-calendar types are not fully compatible
 import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
@@ -42,7 +42,7 @@ export default function SchedulesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("date")
   const [sortOrder, setSortOrder] = useState("asc")
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [_selectedDate, _setSelectedDate] = useState(new Date())
   const [currentDate, setCurrentDate] = useState(new Date())
   const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })

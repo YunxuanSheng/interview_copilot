@@ -197,7 +197,7 @@ export async function PUT(
       return NextResponse.json({ error: "Experience not found" }, { status: 404 })
     }
 
-    const updateData: any = {
+    const updateData: Record<string, any> = {
       company,
       questionType,
       questionText,

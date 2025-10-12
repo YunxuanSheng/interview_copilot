@@ -324,7 +324,7 @@ export async function PUT(
     // 使用事务来更新记录和问题
     const updatedRecord = await prisma.$transaction(async (tx) => {
       // 更新面试记录
-      const updatedInterviewRecord = await tx.interviewRecord.update({
+      const _updatedInterviewRecord = await tx.interviewRecord.update({
         where: { id: recordId },
         data: {
           transcript,

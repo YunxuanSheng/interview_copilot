@@ -557,7 +557,7 @@ export default function ExperienceDetailPage() {
                         try {
                           await navigator.clipboard.writeText(code)
                           toast.success("代码已复制到剪贴板！")
-                        } catch (_err) {
+                        } catch {
                           toast.error("复制失败，请手动复制")
                         }
                       }}

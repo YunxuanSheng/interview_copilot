@@ -152,8 +152,8 @@ export default function Dashboard() {
           </Card>
         </Link>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105" asChild>
-          <Link href="/interviews">
+        <Link href="/interviews">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">已完成面试</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -164,11 +164,11 @@ export default function Dashboard() {
                 已完成的面试
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105" asChild>
-          <Link href="/experiences">
+        <Link href="/experiences">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">面经题目</CardTitle>
               <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -179,11 +179,11 @@ export default function Dashboard() {
                 个人面经库题目
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105" asChild>
-          <Link href="/schedules">
+        <Link href="/schedules">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">即将面试</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -194,8 +194,8 @@ export default function Dashboard() {
                 未来7天内的面试
               </p>
             </CardContent>
-          </Link>
-        </Card>
+          </Card>
+        </Link>
       </div>
 
       {/* Quick Actions */}

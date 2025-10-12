@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Plus, Search, Calendar, Building, MessageSquare, Mic, TrendingUp, Users, Target } from "lucide-react"
+import { FileText, Plus, Search, Calendar, Building, MessageSquare, Mic, TrendingUp, Target } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
