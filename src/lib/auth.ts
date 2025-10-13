@@ -1,7 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma, checkDatabaseConnection } from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 // import bcrypt from "bcryptjs"
 
 export const authOptions = {
@@ -23,7 +23,6 @@ export const authOptions = {
           
           // 临时跳过数据库连接检查，让 Demo 模式先工作
           console.log("Demo mode: skipping database check for now")
-          const dbConnected = true // 临时设置为 true
           
           // Demo模式：任何输入都允许登录
           if (credentials?.demo === "demo") {
