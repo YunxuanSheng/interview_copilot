@@ -9,6 +9,8 @@
 
 #### 1. 配置 PostgreSQL 数据库
 
+**重要**：不要在 `vercel.json` 中配置环境变量，而是通过 Vercel Dashboard 手动配置。
+
 在 Vercel 项目设置中配置以下环境变量：
 
 ```env
@@ -26,6 +28,8 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 # OpenAI API (可选)
 OPENAI_API_KEY="your-openai-api-key"
 ```
+
+**注意**：`vercel.json` 中的 `env` 配置会导致错误，应该删除。
 
 #### 2. 推荐的数据库服务
 
