@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { PrismaClient } from '@prisma/client'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('=== 数据库连接测试 ===')
     console.log('DATABASE_URL 存在:', !!process.env.DATABASE_URL)
