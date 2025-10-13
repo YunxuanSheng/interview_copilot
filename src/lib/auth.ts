@@ -21,43 +21,20 @@ export const authOptions = {
           console.log("Environment:", process.env.NODE_ENV)
           console.log("Database URL exists:", !!process.env.DATABASE_URL)
           
-          // 检查数据库连接
-          const dbConnected = await checkDatabaseConnection()
-          console.log("Database connection status:", dbConnected)
-          
-          if (!dbConnected) {
-            console.error("Database not connected, demo mode failed")
-            return null
-          }
+          // 临时跳过数据库连接检查，让 Demo 模式先工作
+          console.log("Demo mode: skipping database check for now")
+          const dbConnected = true // 临时设置为 true
           
           // Demo模式：任何输入都允许登录
           if (credentials?.demo === "demo") {
-            console.log("Demo credentials valid, checking database...")
+            console.log("Demo credentials valid, using mock user...")
             
-            // 创建或获取demo用户
-            let user = await prisma.user.findUnique({
-              where: { email: "demo@example.com" }
-            })
-
-            if (!user) {
-              console.log("Creating demo user...")
-              user = await prisma.user.create({
-                data: {
-                  email: "demo@example.com",
-                  name: "Demo用户",
-                  image: null
-                }
-              })
-              console.log("Demo user created:", user.id)
-            } else {
-              console.log("Demo user found:", user.id)
-            }
-
+            // 临时使用模拟用户，不依赖数据库
             const result = {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              image: user.image,
+              id: "demo-user-123",
+              email: "demo@example.com",
+              name: "Demo用户",
+              image: null,
             }
             console.log("Demo authorization successful:", result)
             return result
