@@ -21,7 +21,8 @@ import {
   BookOpen,
   LogOut,
   Menu,
-  X
+  X,
+  FolderOpen
 } from "lucide-react"
 import { useState } from "react"
 
@@ -30,6 +31,7 @@ const navigation = [
   { name: "面试日程", href: "/schedules", icon: Calendar },
   { name: "面试记录", href: "/interviews", icon: FileText },
   { name: "面经库", href: "/experiences", icon: BookOpen },
+  { name: "项目整理", href: "/projects", icon: FolderOpen },
   { name: "个人档案", href: "/profile", icon: User },
 ]
 

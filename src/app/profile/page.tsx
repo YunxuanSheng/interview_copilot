@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Mail, Calendar, Upload, Save, Edit3, GraduationCap, Briefcase, Code, Plus, Trash2, FileText, Phone, MapPin } from "lucide-react"
+import { User, Mail, Calendar, Upload, Save, Edit3, GraduationCap, Briefcase, Code, Plus, Trash2, FileText, Phone, MapPin, FolderOpen, CheckCircle, Clock, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -29,6 +29,29 @@ interface UserProfile {
   educations: Education[]
   workExperiences: WorkExperience[]
   skills: Skill[]
+  projects: Project[]
+}
+
+interface Project {
+  id: string
+  name: string
+  role: string
+  description: string
+  timeRange?: string
+  techStack?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  cards: ProjectCard[]
+}
+
+interface ProjectCard {
+  id: string
+  category: string
+  question: string
+  answer?: string
+  status: string
+  priority: number
 }
 
 interface Education {
@@ -74,6 +97,7 @@ export default function ProfilePage() {
   const [educations, setEducations] = useState<Education[]>([])
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
 
   useEffect(() => {
     if (session) {
@@ -97,6 +121,7 @@ export default function ProfilePage() {
         setEducations(data.educations || [])
         setWorkExperiences(data.workExperiences || [])
         setSkills(data.skills || [])
+        setProjects(data.projects || [])
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error)
@@ -160,6 +185,7 @@ export default function ProfilePage() {
       setEducations(profile.educations || [])
       setWorkExperiences(profile.workExperiences || [])
       setSkills(profile.skills || [])
+      setProjects(profile.projects || [])
     }
     setIsEditing(false)
   }
@@ -307,11 +333,12 @@ export default function ProfilePage() {
       </div>
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">基本信息</TabsTrigger>
           <TabsTrigger value="education">教育经历</TabsTrigger>
           <TabsTrigger value="work">工作经历</TabsTrigger>
           <TabsTrigger value="skills">技能专长</TabsTrigger>
+          <TabsTrigger value="projects">项目整理</TabsTrigger>
         </TabsList>
 
         {/* 基本信息 */}
@@ -880,6 +907,151 @@ export default function ProfilePage() {
                         {skill.name}
                       </span>
                     ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 项目整理 */}
+        <TabsContent value="projects" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5" />
+                  项目整理
+                </div>
+                <Button asChild>
+                  <Link href="/projects">
+                    <Plus className="w-4 h-4 mr-2" />
+                    管理项目
+                  </Link>
+                </Button>
+              </CardTitle>
+              <CardDescription>
+                您的项目语料库和面试准备情况
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {projects.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <FolderOpen className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>暂无项目</p>
+                  <Button asChild className="mt-4">
+                    <Link href="/projects/new">
+                      <Plus className="w-4 h-4 mr-2" />
+                      创建第一个项目
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 项目统计概览 */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FolderOpen className="w-5 h-5 text-blue-600" />
+                        <span className="font-medium text-blue-900">总项目数</span>
+                      </div>
+                      <div className="text-2xl font-bold text-blue-600">{projects.length}</div>
+                    </div>
+                    
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-green-900">已完成卡片</span>
+                      </div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {projects.reduce((total, project) => 
+                          total + project.cards.filter(card => card.status === "completed").length, 0
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-yellow-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                        <span className="font-medium text-yellow-900">草稿卡片</span>
+                      </div>
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {projects.reduce((total, project) => 
+                          total + project.cards.filter(card => card.status === "draft").length, 0
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <span className="font-medium text-purple-900">总卡片数</span>
+                      </div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {projects.reduce((total, project) => total + project.cards.length, 0)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 项目列表 */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">最近项目</h4>
+                    {projects.slice(0, 3).map((project) => {
+                      const completedCards = project.cards.filter(card => card.status === "completed").length
+                      const totalCards = project.cards.length
+                      const completionRate = totalCards > 0 ? Math.round((completedCards / totalCards) * 100) : 0
+                      
+                      return (
+                        <div key={project.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h5 className="font-medium text-gray-900">{project.name}</h5>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary">{project.role}</Badge>
+                                {project.timeRange && (
+                                  <span className="text-sm text-gray-600">{project.timeRange}</span>
+                                )}
+                              </div>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/projects/${project.id}`}>
+                                查看详情
+                              </Link>
+                            </Button>
+                          </div>
+                          
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                            {project.description}
+                          </p>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <span>{totalCards} 卡片</span>
+                              <span className="text-green-600">{completedCards} 完成</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${completionRate}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm text-gray-600">{completionRate}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {projects.length > 3 && (
+                      <div className="text-center">
+                        <Button asChild variant="outline">
+                          <Link href="/projects">
+                            查看所有项目
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

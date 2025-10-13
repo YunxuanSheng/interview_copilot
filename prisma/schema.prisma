@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -29,6 +29,7 @@ model User {
   educations        Education[]
   workExperiences   WorkExperience[]
   skills           Skill[]
+  projects         Project[]
 
   @@map("users")
 }
@@ -184,4 +185,60 @@ model PersonalExperience {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("personal_experiences")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  role        String   // 扮演角色：前端、产品、测试、算法、运维等
+  description String   // 项目简介
+  timeRange   String?  // 所属时间段
+  techStack   String?  // 关键技术栈，逗号分隔
+  status      String   @default("active") // active, archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards       ProjectCard[]
+  documents   ProjectDocument[]
+
+  @@map("projects")
+}
+
+model ProjectCard {
+  id          String   @id @default(cuid())
+  projectId   String
+  category    String   // 角度分类：项目背景、职责拆解、难点挑战、技术实现、协作沟通、反思与优化
+  question    String   // 问题内容
+  answer      String?  // 用户回答
+  aiSuggestion String? // AI建议（从哪里找信息）
+  status      String   @default("draft") // draft, answered, completed
+  tags        String?  // 标签，逗号分隔
+  priority    Int      @default(1) // 优先级 1-5
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_cards")
+}
+
+model ProjectDocument {
+  id          String   @id @default(cuid())
+  projectId   String
+  fileName    String
+  fileType    String   // pdf, docx, md, txt
+  fileUrl     String   // 文件存储URL
+  content     String?  // 解析后的文本内容
+  parseDepth  String   @default("medium") // low, medium, high
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_documents")
 }
