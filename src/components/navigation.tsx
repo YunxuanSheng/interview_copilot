@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -38,6 +38,7 @@ const navigation = [
 export default function Navigation() {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   if (!session) {
@@ -113,7 +114,12 @@ export default function Navigation() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                  onClick={async () => {
+                    await signOut({ redirect: false })
+                    // 使用router进行跳转，避免白屏问题
+                    router.push("/auth/signin")
+                    router.refresh()
+                  }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   退出登录

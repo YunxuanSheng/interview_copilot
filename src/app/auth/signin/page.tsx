@@ -2,6 +2,7 @@
 
 import { signIn } from "next-auth/react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,17 +13,24 @@ export default function SignIn() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
     try {
-      await signIn("credentials", {
+      const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       })
+      
+      if (result?.ok) {
+        // 登录成功，跳转到首页
+        router.push("/")
+        router.refresh()
+      }
     } catch (error) {
       console.error("Sign in error:", error)
     } finally {
@@ -34,10 +42,16 @@ export default function SignIn() {
     setIsLoading(true)
     
     try {
-      await signIn("demo", {
+      const result = await signIn("demo", {
         demo: "demo",
         redirect: false,
       })
+      
+      if (result?.ok) {
+        // 登录成功，跳转到首页
+        router.push("/")
+        router.refresh()
+      }
     } catch (error) {
       console.error("Demo sign in error:", error)
     } finally {
