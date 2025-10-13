@@ -42,18 +42,28 @@ export default function SignIn() {
     setIsLoading(true)
     
     try {
+      console.log("Attempting demo sign in...")
+      console.log("Environment:", process.env.NODE_ENV)
+      console.log("NextAuth URL:", process.env.NEXTAUTH_URL)
+      
       const result = await signIn("demo", {
         demo: "demo",
         redirect: false,
       })
       
+      console.log("Demo sign in result:", result)
+      
       if (result?.ok) {
+        console.log("Demo login successful, redirecting...")
         // 登录成功，跳转到首页
-        router.push("/")
-        router.refresh()
+        window.location.href = "/"
+      } else {
+        console.error("Demo login failed:", result?.error)
+        alert(`Demo 登录失败: ${result?.error || "未知错误"}`)
       }
     } catch (error) {
       console.error("Demo sign in error:", error)
+      alert(`Demo 登录出错: ${error instanceof Error ? error.message : "未知错误"}`)
     } finally {
       setIsLoading(false)
     }

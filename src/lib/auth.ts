@@ -1,11 +1,12 @@
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "@/lib/prisma"
+import { prisma, checkDatabaseConnection } from "@/lib/prisma"
 // import bcrypt from "bcryptjs"
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     // Demo模式跳过认证
     CredentialsProvider({
@@ -15,31 +16,55 @@ export const authOptions = {
         demo: { label: "Demo", type: "text" }
       },
       async authorize(credentials) {
-        // Demo模式：任何输入都允许登录
-        if (credentials?.demo === "demo") {
-          // 创建或获取demo用户
-          let user = await prisma.user.findUnique({
-            where: { email: "demo@example.com" }
-          })
-
-          if (!user) {
-            user = await prisma.user.create({
-              data: {
-                email: "demo@example.com",
-                name: "Demo用户",
-                image: null
-              }
+        try {
+          console.log("Demo mode authorize called with:", credentials)
+          
+          // 检查数据库连接
+          const dbConnected = await checkDatabaseConnection()
+          if (!dbConnected) {
+            console.error("Database not connected, demo mode failed")
+            return null
+          }
+          
+          // Demo模式：任何输入都允许登录
+          if (credentials?.demo === "demo") {
+            console.log("Demo credentials valid, checking database...")
+            
+            // 创建或获取demo用户
+            let user = await prisma.user.findUnique({
+              where: { email: "demo@example.com" }
             })
-          }
 
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            image: user.image,
+            if (!user) {
+              console.log("Creating demo user...")
+              user = await prisma.user.create({
+                data: {
+                  email: "demo@example.com",
+                  name: "Demo用户",
+                  image: null
+                }
+              })
+              console.log("Demo user created:", user.id)
+            } else {
+              console.log("Demo user found:", user.id)
+            }
+
+            const result = {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            }
+            console.log("Demo authorization successful:", result)
+            return result
           }
+          
+          console.log("Demo credentials invalid")
+          return null
+        } catch (error) {
+          console.error("Demo mode authorization error:", error)
+          return null
         }
-        return null
       }
     }),
     GoogleProvider({
@@ -95,6 +120,6 @@ export const authOptions = {
         session.user.id = token.id as string
       }
       return session
-    },
-  },
+    }
+  }
 }

@@ -36,10 +36,14 @@ const navigation = [
 ]
 
 export default function Navigation() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // 调试信息
+  console.log("Navigation - Session status:", status)
+  console.log("Navigation - Session data:", session)
 
   if (!session) {
     return null
