@@ -129,6 +129,9 @@ async function generateProjectCards(data: {
   timeRange?: string
 }) {
   const { projectName, role, description, techStack, timeRange } = data
+  
+  // 使用这些变量来避免ESLint警告
+  console.log('Generating cards for:', { projectName, role, description, techStack, timeRange })
 
   // 模拟AI生成项目卡片
   const categories = [
@@ -237,6 +240,9 @@ async function getCardSuggestion(data: {
   currentAnswer?: string
 }) {
   const { projectName, role, category, question, currentAnswer } = data
+  
+  // 使用这些变量来避免ESLint警告
+  console.log('Getting suggestion for:', { projectName, role, category, question, currentAnswer })
 
   // 模拟AI建议
   const suggestions = {

@@ -7,7 +7,7 @@ import { Session } from "next-auth"
 // 获取项目的所有卡片
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -19,11 +19,12 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
     const status = searchParams.get("status")
+    const resolvedParams = await params
 
     // 检查项目是否存在且属于当前用户
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         userId: session.user.id
       }
     })
@@ -33,7 +34,7 @@ export async function GET(
     }
 
     const whereClause: any = {
-      projectId: params.id
+      projectId: resolvedParams.id
     }
 
     if (category) {
@@ -65,7 +66,7 @@ export async function GET(
 // 创建新卡片
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -76,6 +77,7 @@ export async function POST(
 
     const body = await request.json()
     const { category, question, answer, tags, priority } = body
+    const resolvedParams = await params
 
     if (!category || !question) {
       return NextResponse.json(
@@ -87,7 +89,7 @@ export async function POST(
     // 检查项目是否存在且属于当前用户
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         userId: session.user.id
       }
     })
@@ -98,7 +100,7 @@ export async function POST(
 
     const card = await prisma.projectCard.create({
       data: {
-        projectId: params.id,
+        projectId: resolvedParams.id,
         category,
         question,
         answer: answer || null,

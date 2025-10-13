@@ -1,15 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   ArrowLeft, 
   Plus, 
@@ -82,13 +81,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [isGeneratingCards, setIsGeneratingCards] = useState(false)
   const [isGettingSuggestion, setIsGettingSuggestion] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (session) {
-      fetchProject()
-    }
-  }, [session, params.id])
-
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       const response = await fetch(`/api/projects/${params.id}`)
       if (response.ok) {
@@ -103,7 +96,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id, router])
+
+  useEffect(() => {
+    if (session) {
+      fetchProject()
+    }
+  }, [session, fetchProject])
 
   const handleGenerateCards = async () => {
     setIsGeneratingCards(true)
@@ -453,7 +452,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                 <div className="text-center py-8">
                   <Sparkles className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">还没有卡片</h3>
-                  <p className="text-gray-600 mb-4">点击"生成卡片"让AI为您创建面试问题</p>
+                  <p className="text-gray-600 mb-4">点击&ldquo;生成卡片&rdquo;让AI为您创建面试问题</p>
                   <Button
                     onClick={handleGenerateCards}
                     disabled={isGeneratingCards}

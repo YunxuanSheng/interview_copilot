@@ -7,7 +7,7 @@ import { Session } from "next-auth"
 // 更新卡片
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; cardId: string } }
+  { params }: { params: Promise<{ id: string; cardId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -18,11 +18,12 @@ export async function PUT(
 
     const body = await request.json()
     const { question, answer, status, tags, priority, aiSuggestion } = body
+    const resolvedParams = await params
 
     // 检查卡片是否存在且属于当前用户的项目
     const existingCard = await prisma.projectCard.findFirst({
       where: {
-        id: params.cardId,
+        id: resolvedParams.cardId,
         project: {
           userId: session.user.id
         }
@@ -35,7 +36,7 @@ export async function PUT(
 
     const card = await prisma.projectCard.update({
       where: {
-        id: params.cardId
+        id: resolvedParams.cardId
       },
       data: {
         question: question || existingCard.question,
@@ -60,7 +61,7 @@ export async function PUT(
 // 删除卡片
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; cardId: string } }
+  { params }: { params: Promise<{ id: string; cardId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -69,10 +70,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const resolvedParams = await params
+
     // 检查卡片是否存在且属于当前用户的项目
     const existingCard = await prisma.projectCard.findFirst({
       where: {
-        id: params.cardId,
+        id: resolvedParams.cardId,
         project: {
           userId: session.user.id
         }
@@ -85,7 +88,7 @@ export async function DELETE(
 
     await prisma.projectCard.delete({
       where: {
-        id: params.cardId
+        id: resolvedParams.cardId
       }
     })
 

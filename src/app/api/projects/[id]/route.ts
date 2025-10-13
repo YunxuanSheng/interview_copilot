@@ -7,7 +7,7 @@ import { Session } from "next-auth"
 // 获取单个项目详情
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -18,6 +18,7 @@ export async function GET(
 
     // 如果是demo用户，返回模拟数据
     if (session.user.email === "demo@example.com") {
+      const resolvedParams = await params
       const mockProjectData = {
         "1": {
           id: "1",
@@ -195,7 +196,7 @@ export async function GET(
         }
       }
 
-      const project = mockProjectData[params.id as keyof typeof mockProjectData]
+      const project = mockProjectData[resolvedParams.id as keyof typeof mockProjectData]
       
       if (!project) {
         return NextResponse.json({ error: "项目不存在" }, { status: 404 })
@@ -204,9 +205,10 @@ export async function GET(
       return NextResponse.json({ project })
     }
 
+    const resolvedParams = await params
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         userId: session.user.id
       },
       include: {
@@ -241,7 +243,7 @@ export async function GET(
 // 更新项目
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -252,11 +254,12 @@ export async function PUT(
 
     const body = await request.json()
     const { name, role, description, timeRange, techStack, status } = body
+    const resolvedParams = await params
 
     // 检查项目是否存在且属于当前用户
     const existingProject = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         userId: session.user.id
       }
     })
@@ -267,7 +270,7 @@ export async function PUT(
 
     const project = await prisma.project.update({
       where: {
-        id: params.id
+        id: resolvedParams.id
       },
       data: {
         name: name || existingProject.name,
@@ -292,7 +295,7 @@ export async function PUT(
 // 删除项目
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -301,10 +304,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const resolvedParams = await params
+
     // 检查项目是否存在且属于当前用户
     const existingProject = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         userId: session.user.id
       }
     })
@@ -315,7 +320,7 @@ export async function DELETE(
 
     await prisma.project.delete({
       where: {
-        id: params.id
+        id: resolvedParams.id
       }
     })
 
