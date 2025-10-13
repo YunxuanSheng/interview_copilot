@@ -46,8 +46,8 @@ export async function GET(_request: NextRequest) {
   } catch (error) {
     console.error('❌ 数据库连接失败:')
     console.error('错误类型:', error?.constructor?.name)
-    console.error('错误消息:', error?.message)
-    console.error('错误代码:', error?.code)
+    console.error('错误消息:', error instanceof Error ? error.message : String(error))
+    console.error('错误代码:', (error as any)?.code)
     console.error('完整错误:', error)
     
     return NextResponse.json({
@@ -55,8 +55,8 @@ export async function GET(_request: NextRequest) {
       message: "数据库连接失败",
       error: {
         type: error?.constructor?.name,
-        message: error?.message,
-        code: error?.code,
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code,
       }
     }, { status: 500 })
   }
