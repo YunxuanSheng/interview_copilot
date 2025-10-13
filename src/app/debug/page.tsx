@@ -31,7 +31,7 @@ export default function DebugPage() {
             <p><strong>状态:</strong> {status}</p>
             <p><strong>用户:</strong> {session?.user?.name || "未登录"}</p>
             <p><strong>邮箱:</strong> {session?.user?.email || "无"}</p>
-            <p><strong>用户ID:</strong> {session?.user?.id || "无"}</p>
+            <p><strong>用户ID:</strong> {(session?.user as any)?.id || "无"}</p>
           </div>
         </div>
 
