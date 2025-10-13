@@ -18,9 +18,13 @@ export const authOptions = {
       async authorize(credentials) {
         try {
           console.log("Demo mode authorize called with:", credentials)
+          console.log("Environment:", process.env.NODE_ENV)
+          console.log("Database URL exists:", !!process.env.DATABASE_URL)
           
           // 检查数据库连接
           const dbConnected = await checkDatabaseConnection()
+          console.log("Database connection status:", dbConnected)
+          
           if (!dbConnected) {
             console.error("Database not connected, demo mode failed")
             return null
