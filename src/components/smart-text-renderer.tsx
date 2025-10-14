@@ -15,6 +15,9 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
   // 检测代码块的正则表达式
   const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g
   const inlineCodeRegex = /`([^`]+)`/g
+  // 检测Markdown格式的正则表达式
+  const boldRegex = /\*\*(.*?)\*\*/g
+  const italicRegex = /\*(.*?)\*/g
 
   // 处理代码块复制
   const handleCopyCode = async (code: string) => {
@@ -86,7 +89,7 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
     return elements.length > 0 ? elements : text
   }
 
-  // 渲染行内代码
+  // 渲染行内代码和Markdown格式
   const renderInlineCode = (text: string) => {
     const parts: React.ReactNode[] = []
     let lastIndex = 0
@@ -100,9 +103,10 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
       const startIndex = match.index
       const endIndex = startIndex + fullMatch.length
 
-      // 添加代码前的文本
+      // 添加代码前的文本（处理Markdown格式）
       if (startIndex > lastIndex) {
-        parts.push(text.slice(lastIndex, startIndex))
+        const beforeText = text.slice(lastIndex, startIndex)
+        parts.push(renderMarkdown(beforeText))
       }
 
       // 添加行内代码
@@ -113,6 +117,84 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
         >
           {code}
         </code>
+      )
+
+      lastIndex = endIndex
+    }
+
+    // 添加剩余文本（处理Markdown格式）
+    if (lastIndex < text.length) {
+      const remainingText = text.slice(lastIndex)
+      parts.push(renderMarkdown(remainingText))
+    }
+
+    return parts.length > 0 ? parts : text
+  }
+
+  // 渲染Markdown格式
+  const renderMarkdown = (text: string) => {
+    const parts: React.ReactNode[] = []
+    let lastIndex = 0
+    let match
+
+    // 重置正则表达式的lastIndex
+    boldRegex.lastIndex = 0
+
+    // 处理粗体格式
+    while ((match = boldRegex.exec(text)) !== null) {
+      const [fullMatch, content] = match
+      const startIndex = match.index
+      const endIndex = startIndex + fullMatch.length
+
+      // 添加粗体前的文本
+      if (startIndex > lastIndex) {
+        const beforeText = text.slice(lastIndex, startIndex)
+        parts.push(renderItalic(beforeText))
+      }
+
+      // 添加粗体文本
+      parts.push(
+        <strong key={`bold-${startIndex}`} className="font-semibold text-gray-900">
+          {content}
+        </strong>
+      )
+
+      lastIndex = endIndex
+    }
+
+    // 添加剩余文本（处理斜体格式）
+    if (lastIndex < text.length) {
+      const remainingText = text.slice(lastIndex)
+      parts.push(renderItalic(remainingText))
+    }
+
+    return parts.length > 0 ? parts : text
+  }
+
+  // 渲染斜体格式
+  const renderItalic = (text: string) => {
+    const parts: React.ReactNode[] = []
+    let lastIndex = 0
+    let match
+
+    // 重置正则表达式的lastIndex
+    italicRegex.lastIndex = 0
+
+    while ((match = italicRegex.exec(text)) !== null) {
+      const [fullMatch, content] = match
+      const startIndex = match.index
+      const endIndex = startIndex + fullMatch.length
+
+      // 添加斜体前的文本
+      if (startIndex > lastIndex) {
+        parts.push(text.slice(lastIndex, startIndex))
+      }
+
+      // 添加斜体文本
+      parts.push(
+        <em key={`italic-${startIndex}`} className="italic text-gray-700">
+          {content}
+        </em>
       )
 
       lastIndex = endIndex

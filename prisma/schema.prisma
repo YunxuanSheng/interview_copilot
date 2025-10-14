@@ -154,17 +154,18 @@ model InterviewRecord {
 }
 
 model InterviewQuestion {
-  id             String   @id @default(cuid())
-  recordId       String
-  questionText   String
-  userAnswer     String?
-  aiEvaluation   String?
-  score          Int?
-  questionType   String?  // algorithm, system_design, behavioral, etc.
-  createdAt      DateTime @default(now())
+  id                String   @id @default(cuid())
+  recordId          String
+  questionText      String
+  userAnswer        String?
+  aiEvaluation      String?
+  recommendedAnswer String?  // AI推荐的标准答案
+  score             Int?
+  questionType      String?  // algorithm, system_design, behavioral, etc.
+  createdAt         DateTime @default(now())
 
   // Relations
-  record         InterviewRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  record            InterviewRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
 
   @@map("interview_questions")
 }

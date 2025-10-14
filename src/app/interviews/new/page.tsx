@@ -26,6 +26,7 @@ interface Question {
   questionText: string
   userAnswer: string
   aiEvaluation: string
+  recommendedAnswer?: string
   questionType: string
 }
 
@@ -94,11 +95,17 @@ export default function NewInterviewPage() {
       return false
     }
 
-    // 验证文件大小（100MB限制）
+    // 验证文件大小（100MB限制，超过25MB会提示分段处理）
     const maxSize = 100 * 1024 * 1024 // 100MB
+    const whisperLimit = 25 * 1024 * 1024 // 25MB (Whisper API限制)
+    
     if (file.size > maxSize) {
       toast.error("文件过大，请上传小于 100MB 的音频文件")
       return false
+    }
+    
+    if (file.size > whisperLimit) {
+      toast.warning(`文件较大（${(file.size / 1024 / 1024).toFixed(1)}MB），建议压缩到25MB以下以获得最佳效果`)
     }
 
     // 清理之前的文件URL
@@ -183,8 +190,16 @@ export default function NewInterviewPage() {
       if (response.ok) {
         const result = await response.json()
         if (result.success) {
-          setFormData(prev => ({ ...prev, transcript: result.data.transcript }))
-          toast.success("语音转文字完成")
+          // 处理包含说话人信息的转录结果
+          const transcriptData = result.data
+          setFormData(prev => ({ ...prev, transcript: transcriptData.transcript }))
+          
+          // 显示说话人识别结果
+          if (transcriptData.speakers && transcriptData.speakers.length > 0) {
+            toast.success(`语音转文字完成！识别出 ${transcriptData.speakers.length} 个说话人：${transcriptData.speakers.join('、')}`)
+          } else {
+            toast.success("语音转文字完成")
+          }
         } else {
           throw new Error(result.message || "转文字失败")
         }
@@ -299,19 +314,65 @@ export default function NewInterviewPage() {
           question: string
           answer: string
           evaluation: string
+          recommendedAnswer?: string
         }, index: number) => ({
           id: `ai-${index}-${Math.random().toString(36).substr(2, 9)}`,
           questionText: q.question,
           userAnswer: q.answer,
           aiEvaluation: q.evaluation,
+          recommendedAnswer: q.recommendedAnswer,
           questionType: "technical"
         }))
         
         setQuestions(analyzedQuestions)
+        // 格式化AI分析结果为可读文本
+        const formatAnalysis = (data: any) => {
+          let analysis = ""
+          
+          if (data.strengths && data.strengths.length > 0) {
+            analysis += "## 优势\n"
+            data.strengths.forEach((strength: string, index: number) => {
+              analysis += `${index + 1}. ${strength}\n`
+            })
+            analysis += "\n"
+          }
+          
+          if (data.weaknesses && data.weaknesses.length > 0) {
+            analysis += "## 不足\n"
+            data.weaknesses.forEach((weakness: string, index: number) => {
+              analysis += `${index + 1}. ${weakness}\n`
+            })
+            analysis += "\n"
+          }
+          
+          if (data.suggestions && data.suggestions.length > 0) {
+            analysis += "## 改进建议\n"
+            data.suggestions.forEach((suggestion: string, index: number) => {
+              analysis += `${index + 1}. ${suggestion}\n`
+            })
+            analysis += "\n"
+          }
+          
+          if (data.questionAnalysis && data.questionAnalysis.length > 0) {
+            analysis += "## 题目分析\n"
+            data.questionAnalysis.forEach((q: any, index: number) => {
+              analysis += `### 题目 ${index + 1}\n`
+              analysis += `**问题：** ${q.question}\n`
+              analysis += `**回答：** ${q.answer}\n`
+              analysis += `**评价：** ${q.evaluation}\n\n`
+            })
+          } else {
+            analysis += "## 题目分析\n"
+            analysis += "本次录音内容较短，未提取到具体的面试题目和回答。建议上传更完整的面试录音以获得更详细的分析。\n\n"
+          }
+          
+          return analysis.trim()
+        }
+
         setFormData(prev => ({
           ...prev,
           feedback: (result.data.suggestions || []).join('\n'),
-          aiAnalysis: JSON.stringify(result.data)
+          aiAnalysis: formatAnalysis(result.data)
         }))
         
         toast.success("AI分析完成")
@@ -844,9 +905,43 @@ export default function NewInterviewPage() {
                 ) : (
                   <div className="space-y-2">
                     <div className="bg-blue-50 p-4 rounded-lg">
-                      <pre className="whitespace-pre-wrap text-sm text-gray-900">
-                        {formData.aiAnalysis}
-                      </pre>
+                      <div className="prose prose-sm max-w-none">
+                        {formData.aiAnalysis.split('\n').map((line, index) => {
+                          if (line.startsWith('## ')) {
+                            return (
+                              <h2 key={index} className="text-lg font-semibold text-gray-900 mt-4 mb-2 first:mt-0">
+                                {line.replace('## ', '')}
+                              </h2>
+                            )
+                          } else if (line.startsWith('### ')) {
+                            return (
+                              <h3 key={index} className="text-base font-medium text-gray-800 mt-3 mb-1">
+                                {line.replace('### ', '')}
+                              </h3>
+                            )
+                          } else if (line.startsWith('**') && line.endsWith('**')) {
+                            return (
+                              <p key={index} className="font-medium text-gray-800 mb-1">
+                                {line.replace(/\*\*/g, '')}
+                              </p>
+                            )
+                          } else if (line.match(/^\d+\./)) {
+                            return (
+                              <p key={index} className="text-gray-700 mb-1 ml-4">
+                                {line}
+                              </p>
+                            )
+                          } else if (line.trim() === '') {
+                            return <br key={index} />
+                          } else {
+                            return (
+                              <p key={index} className="text-gray-700 mb-1">
+                                {line}
+                              </p>
+                            )
+                          }
+                        })}
+                      </div>
                     </div>
                     <p className="text-xs text-blue-600">✓ AI已自动分析</p>
                   </div>
@@ -1018,6 +1113,17 @@ export default function NewInterviewPage() {
                       rows={2}
                     />
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label>推荐答案</Label>
+                    <Textarea
+                      placeholder="AI推荐的标准答案或改进建议..."
+                      value={question.recommendedAnswer || ""}
+                      onChange={(e) => updateQuestion(question.id, "recommendedAnswer", e.target.value)}
+                      rows={3}
+                      className="bg-blue-50 border-blue-200"
+                    />
+                  </div>
                 </div>
               ))}
               
@@ -1100,9 +1206,43 @@ export default function NewInterviewPage() {
               ) : (
                 <div className="space-y-2">
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-900">
-                      {formData.aiAnalysis}
-                    </pre>
+                    <div className="prose prose-sm max-w-none">
+                      {formData.aiAnalysis.split('\n').map((line, index) => {
+                        if (line.startsWith('## ')) {
+                          return (
+                            <h2 key={index} className="text-lg font-semibold text-gray-900 mt-4 mb-2 first:mt-0">
+                              {line.replace('## ', '')}
+                            </h2>
+                          )
+                        } else if (line.startsWith('### ')) {
+                          return (
+                            <h3 key={index} className="text-base font-medium text-gray-800 mt-3 mb-1">
+                              {line.replace('### ', '')}
+                            </h3>
+                          )
+                        } else if (line.startsWith('**') && line.endsWith('**')) {
+                          return (
+                            <p key={index} className="font-medium text-gray-800 mb-1">
+                              {line.replace(/\*\*/g, '')}
+                            </p>
+                          )
+                        } else if (line.match(/^\d+\./)) {
+                          return (
+                            <p key={index} className="text-gray-700 mb-1 ml-4">
+                              {line}
+                            </p>
+                          )
+                        } else if (line.trim() === '') {
+                          return <br key={index} />
+                        } else {
+                          return (
+                            <p key={index} className="text-gray-700 mb-1">
+                              {line}
+                            </p>
+                          )
+                        }
+                      })}
+                    </div>
                   </div>
                   <p className="text-xs text-blue-600">✓ AI已自动分析</p>
                 </div>

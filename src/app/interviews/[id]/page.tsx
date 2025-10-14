@@ -51,6 +51,7 @@ interface InterviewRecord {
     questionText: string
     userAnswer?: string
     aiEvaluation?: string
+    recommendedAnswer?: string
     score?: number
     questionType?: string
   }[]
@@ -471,6 +472,18 @@ export default function InterviewDetailPage() {
                             </div>
                           </div>
                         )}
+                        
+                        {/* 显示推荐答案 */}
+                        {question.recommendedAnswer && (
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
+                            <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="text-gray-800">
+                                <SmartTextRenderer text={question.recommendedAnswer} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   )
@@ -493,9 +506,39 @@ export default function InterviewDetailPage() {
                 <CardContent>
                   {record.transcript ? (
                     <div className="prose max-w-none">
-                      <pre className="whitespace-pre-wrap text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
-                        {record.transcript}
-                      </pre>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                          {record.transcript.split('\n').map((line, index) => {
+                            // 检查是否是说话人标识行
+                            if (line.includes(':') && (line.includes('面试官') || line.includes('候选人'))) {
+                              const [speaker, ...content] = line.split(':')
+                              const isInterviewer = speaker.includes('面试官')
+                              return (
+                                <div key={index} className={`mb-3 p-3 rounded-lg ${
+                                  isInterviewer 
+                                    ? 'bg-blue-50 border-l-4 border-blue-400' 
+                                    : 'bg-green-50 border-l-4 border-green-400'
+                                }`}>
+                                  <div className={`font-semibold text-sm mb-1 ${
+                                    isInterviewer ? 'text-blue-800' : 'text-green-800'
+                                  }`}>
+                                    {speaker.trim()}
+                                  </div>
+                                  <div className="text-gray-800">
+                                    {content.join(':').trim()}
+                                  </div>
+                                </div>
+                              )
+                            }
+                            // 普通文本行
+                            return (
+                              <div key={index} className="mb-2 text-gray-700">
+                                {line}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-gray-500">

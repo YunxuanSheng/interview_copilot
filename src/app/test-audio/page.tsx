@@ -45,8 +45,15 @@ export default function TestAudioPage() {
       console.log("响应结果:", result)
 
       if (response.ok && result.success) {
-        setTranscript(result.data.transcript)
-        toast.success("语音转文字完成")
+        const transcriptData = result.data
+        setTranscript(transcriptData.transcript)
+        
+        // 显示说话人识别结果
+        if (transcriptData.speakers && transcriptData.speakers.length > 0) {
+          toast.success(`语音转文字完成！识别出 ${transcriptData.speakers.length} 个说话人：${transcriptData.speakers.join('、')}`)
+        } else {
+          toast.success("语音转文字完成")
+        }
       } else {
         throw new Error(result.message || "转文字失败")
       }
@@ -109,7 +116,37 @@ export default function TestAudioPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium">转文字结果</label>
               <div className="p-4 bg-gray-50 rounded-lg border">
-                <pre className="whitespace-pre-wrap text-sm">{transcript}</pre>
+                <div className="text-sm whitespace-pre-wrap">
+                  {transcript.split('\n').map((line, index) => {
+                    // 检查是否是说话人标识行
+                    if (line.includes(':') && (line.includes('面试官') || line.includes('候选人'))) {
+                      const [speaker, ...content] = line.split(':')
+                      const isInterviewer = speaker.includes('面试官')
+                      return (
+                        <div key={index} className={`mb-3 p-3 rounded-lg ${
+                          isInterviewer 
+                            ? 'bg-blue-50 border-l-4 border-blue-400' 
+                            : 'bg-green-50 border-l-4 border-green-400'
+                        }`}>
+                          <div className={`font-semibold text-sm mb-1 ${
+                            isInterviewer ? 'text-blue-800' : 'text-green-800'
+                          }`}>
+                            {speaker.trim()}
+                          </div>
+                          <div className="text-gray-800">
+                            {content.join(':').trim()}
+                          </div>
+                        </div>
+                      )
+                    }
+                    // 普通文本行
+                    return (
+                      <div key={index} className="mb-2 text-gray-700">
+                        {line}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}
