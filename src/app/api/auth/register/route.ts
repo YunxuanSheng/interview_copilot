@@ -12,6 +12,12 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // 添加CORS支持
+    const headers = new Headers()
+    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    headers.set('Access-Control-Allow-Headers', 'Content-Type')
+    
     const body = await request.json()
     
     // 验证输入数据
@@ -53,7 +59,7 @@ export async function POST(request: NextRequest) {
         message: "注册成功", 
         user 
       },
-      { status: 201 }
+      { status: 201, headers }
     )
 
   } catch (error) {
@@ -71,4 +77,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

@@ -1,63 +1,44 @@
-import { NextRequest, NextResponse } from "next/server"
-import { PrismaClient } from '@prisma/client'
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
-    console.log('=== 数据库连接测试 ===')
-    console.log('DATABASE_URL 存在:', !!process.env.DATABASE_URL)
-    console.log('DATABASE_URL 前缀:', process.env.DATABASE_URL?.substring(0, 20))
+    console.log("Testing database connection...")
     
-    const prisma = new PrismaClient({
-      log: ['query', 'info', 'warn', 'error'],
+    // 测试数据库连接
+    await prisma.$connect()
+    console.log("Database connected successfully")
+    
+    // 测试查询
+    const userCount = await prisma.user.count()
+    console.log(`Found ${userCount} users in database`)
+    
+    // 测试表结构
+    const users = await prisma.user.findMany({
+      take: 1,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true, // 检查password字段是否存在
+        createdAt: true,
+      }
     })
     
-    console.log('正在尝试连接数据库...')
-    
-    // 测试基本连接
-    await prisma.$connect()
-    console.log('✅ 数据库连接成功')
-    
-    // 测试简单查询
-    const result = await prisma.$queryRaw`SELECT 1 as test`
-    console.log('✅ 查询测试成功:', result)
-    
-    // 检查用户表是否存在
-    let userCount = 0
-    try {
-      userCount = await prisma.user.count()
-      console.log('✅ 用户表存在，用户数量:', userCount)
-    } catch (error) {
-      console.log('❌ 用户表不存在或有问题:', error)
-    }
-    
-    await prisma.$disconnect()
-    console.log('✅ 数据库断开连接成功')
-    
     return NextResponse.json({
-      status: "success",
-      message: "数据库连接成功",
-      details: {
-        connected: true,
-        userCount,
-        databaseUrl: process.env.DATABASE_URL?.substring(0, 30) + "...",
-      }
+      success: true,
+      message: "Database connection successful",
+      userCount,
+      hasPasswordField: users.length > 0 ? users[0].password !== undefined : "No users to check",
+      sampleUser: users[0] || null
     })
     
   } catch (error) {
-    console.error('❌ 数据库连接失败:')
-    console.error('错误类型:', error?.constructor?.name)
-    console.error('错误消息:', error instanceof Error ? error.message : String(error))
-    console.error('错误代码:', (error as any)?.code)
-    console.error('完整错误:', error)
-    
+    console.error("Database test failed:", error)
     return NextResponse.json({
-      status: "error",
-      message: "数据库连接失败",
-      error: {
-        type: error?.constructor?.name,
-        message: error instanceof Error ? error.message : String(error),
-        code: (error as any)?.code,
-      }
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }
