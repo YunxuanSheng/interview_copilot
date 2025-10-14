@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles } from "lucide-react"
+import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles, Edit, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -63,6 +63,8 @@ export default function NewInterviewPage() {
     round: 1
   })
   const [questions, setQuestions] = useState<Question[]>([])
+  const [isEditingAiAnalysis, setIsEditingAiAnalysis] = useState(false)
+  const [isEditingFeedback, setIsEditingFeedback] = useState(false)
 
   useEffect(() => {
     if (session) {
@@ -99,25 +101,89 @@ export default function NewInterviewPage() {
     setIsUploading(true)
     
     try {
-      // 模拟上传和转文字过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 创建FormData来上传文件
+      const formData = new FormData()
+      formData.append('audio', audioFile)
       
-      const mockTranscript = `
-面试官：你好，请先自我介绍一下。
-候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架开发过多个项目。
-面试官：能说说你对React的理解吗？
-候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能，支持组件化开发。
-面试官：如何优化React应用性能？
-候选人：可以使用React.memo、useMemo、useCallback等优化手段，还有代码分割、懒加载等技术。
-面试官：能介绍一下你最近的项目吗？
-候选人：最近做了一个电商平台的前端项目，使用了React + TypeScript + Ant Design，实现了用户管理、商品展示、购物车等功能。
-      `
+      // 调用真实的语音转文字API
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        body: formData,
+        // 不设置Content-Type，让浏览器自动设置multipart/form-data边界
+      })
 
-      setFormData(prev => ({ ...prev, transcript: mockTranscript.trim() }))
-      toast.success("语音转文字完成")
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setFormData(prev => ({ ...prev, transcript: result.data.transcript }))
+          toast.success("语音转文字完成")
+        } else {
+          throw new Error(result.message || "转文字失败")
+        }
+      } else {
+        throw new Error("转文字服务暂时不可用")
+      }
     } catch (error) {
       console.error("Transcribe error:", error)
       toast.error("转文字失败，请重试")
+      
+      // 如果真实API失败，提供模拟数据作为fallback
+      const mockTranscript = `
+面试官：你好，请先自我介绍一下。
+
+候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架开发过多个项目。我毕业于计算机科学专业，在校期间就接触了前端开发，毕业后一直专注于前端技术栈的学习和实践。
+
+面试官：能说说你对React的理解吗？
+
+候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能，支持组件化开发。React的核心概念包括组件、状态、属性、生命周期等。我在项目中主要使用函数式组件和Hooks，比如useState、useEffect、useContext等。React的虚拟DOM机制可以最小化DOM操作，提高渲染性能。
+
+面试官：如何优化React应用性能？
+
+候选人：React性能优化可以从多个方面入手。首先是组件层面，可以使用React.memo来避免不必要的重渲染，useMemo和useCallback来缓存计算结果和函数。其次是代码分割，使用React.lazy和Suspense实现按需加载。还有列表渲染优化，使用key属性，避免在render中创建新对象。另外还有状态管理优化，合理使用useState和useReducer，避免状态过于复杂。
+
+面试官：能介绍一下你最近的项目吗？
+
+候选人：最近做了一个电商平台的前端项目，使用了React + TypeScript + Ant Design，实现了用户管理、商品展示、购物车等功能。项目采用微前端架构，主应用使用single-spa，子应用独立开发和部署。我负责商品模块的开发，包括商品列表、详情页、搜索筛选等功能。在性能优化方面，我使用了虚拟滚动来处理大量商品数据，图片懒加载减少首屏加载时间。
+
+面试官：在项目中遇到过哪些技术难点，是如何解决的？
+
+候选人：最大的难点是商品搜索的性能问题。当用户输入搜索关键词时，需要实时搜索并展示结果，但商品数据量很大，直接遍历会很慢。我采用了防抖技术，延迟300ms执行搜索，避免频繁请求。同时使用Web Worker在后台进行搜索计算，不阻塞主线程。还实现了搜索结果的缓存机制，相同关键词直接返回缓存结果。
+
+面试官：你了解哪些前端工程化工具？
+
+候选人：我熟悉Webpack、Vite等打包工具，了解它们的配置和优化。使用过ESLint、Prettier进行代码规范，Husky做Git钩子，Jest做单元测试。在CI/CD方面，使用过GitHub Actions和Jenkins。还了解过微前端方案，比如qiankun、single-spa等。
+
+面试官：对TypeScript有什么理解？
+
+候选人：TypeScript是JavaScript的超集，提供了静态类型检查。我在项目中大量使用TypeScript，可以提前发现类型错误，提高代码质量。我熟悉接口定义、泛型、联合类型、交叉类型等概念。TypeScript的智能提示和重构功能也大大提高了开发效率。
+
+面试官：你如何保证代码质量？
+
+候选人：首先建立代码规范，使用ESLint和Prettier统一代码风格。其次编写单元测试，使用Jest和React Testing Library测试组件功能。还有代码审查，通过Pull Request进行同行评审。最后是持续集成，每次提交都自动运行测试和构建，确保代码质量。
+
+面试官：你平时如何学习新技术？
+
+候选人：我主要通过官方文档、技术博客、开源项目来学习新技术。会关注一些技术社区，比如掘金、思否等。也会通过实际项目来实践新技术，遇到问题会查阅资料或向同事请教。还会参加一些技术会议和线上分享，了解行业动态。
+
+面试官：你对前端发展趋势有什么看法？
+
+候选人：我认为前端正在向全栈方向发展，Node.js让前端可以处理服务端逻辑。微前端架构也越来越成熟，可以更好地支持大型应用。还有WebAssembly、PWA等新技术，让前端应用更接近原生体验。另外，低代码平台和无代码工具也在兴起，可能会改变前端开发的模式。
+
+面试官：你有什么问题要问我们吗？
+
+候选人：我想了解一下公司的技术栈和团队规模，以及这个岗位的具体职责。还有公司对新技术的接受程度，是否有技术分享和学习的氛围。
+
+面试官：我们主要使用React + Node.js的技术栈，团队有20人左右，这个岗位主要负责前端开发。我们鼓励技术创新，每周都有技术分享会。
+
+候选人：听起来很不错，我很期待能加入这样的团队。
+
+面试官：好的，今天的面试就到这里，我们会在一周内给你回复。
+
+候选人：谢谢，期待您的回复。
+      `
+      
+      setFormData(prev => ({ ...prev, transcript: mockTranscript.trim() }))
+      toast.info("使用模拟数据，请手动调整内容")
     } finally {
       setIsUploading(false)
     }
@@ -148,7 +214,7 @@ export default function NewInterviewPage() {
         setAnalysis(result.data)
         
         // 将AI分析的问题添加到questions数组
-        const analyzedQuestions: Question[] = result.data.questionAnalysis.map((q: {
+        const analyzedQuestions: Question[] = (result.data.questionAnalysis || []).map((q: {
           question: string
           answer: string
           evaluation: string
@@ -157,13 +223,13 @@ export default function NewInterviewPage() {
           questionText: q.question,
           userAnswer: q.answer,
           aiEvaluation: q.evaluation,
-          questionType: "algorithm"
+          questionType: "technical"
         }))
         
         setQuestions(analyzedQuestions)
         setFormData(prev => ({
           ...prev,
-          feedback: result.data.suggestions.join('\n'),
+          feedback: (result.data.suggestions || []).join('\n'),
           aiAnalysis: JSON.stringify(result.data)
         }))
         
@@ -678,66 +744,152 @@ export default function NewInterviewPage() {
           {/* AI Analysis */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                AI分析
-                {formData.aiAnalysis && (
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    已生成
-                  </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CardTitle>AI分析</CardTitle>
+                  {formData.aiAnalysis && (
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      已生成
+                    </span>
+                  )}
+                </div>
+                {formData.aiAnalysis && !isEditingAiAnalysis && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingAiAnalysis(true)}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    编辑
+                  </Button>
                 )}
-              </CardTitle>
+              </div>
               <CardDescription>
                 {formData.aiAnalysis ? "AI已自动分析，您可手动调整" : "AI对整体面试表现的分析"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="aiAnalysis">AI分析结果</Label>
-                <Textarea
-                  id="aiAnalysis"
-                  placeholder="AI分析结果和建议..."
-                  value={formData.aiAnalysis}
-                  onChange={(e) => handleInputChange("aiAnalysis", e.target.value)}
-                  rows={6}
-                  className={formData.aiAnalysis ? "bg-blue-50" : ""}
-                />
-                {formData.aiAnalysis && (
+              {!formData.aiAnalysis ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-sm">AI分析结果将在这里显示</p>
+                  <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击"AI智能分析"</p>
+                </div>
+              ) : isEditingAiAnalysis ? (
+                <div className="space-y-2">
+                  <Label htmlFor="aiAnalysis">AI分析结果</Label>
+                  <Textarea
+                    id="aiAnalysis"
+                    placeholder="AI分析结果和建议..."
+                    value={formData.aiAnalysis}
+                    onChange={(e) => handleInputChange("aiAnalysis", e.target.value)}
+                    rows={6}
+                    className="bg-blue-50"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setIsEditingAiAnalysis(false)}
+                    >
+                      保存
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingAiAnalysis(false)}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-900">
+                      {formData.aiAnalysis}
+                    </pre>
+                  </div>
                   <p className="text-xs text-blue-600">✓ AI已自动分析</p>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Feedback */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                反馈总结
-                {formData.feedback && (
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                    AI生成
-                  </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CardTitle>反馈总结</CardTitle>
+                  {formData.feedback && (
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                      AI生成
+                    </span>
+                  )}
+                </div>
+                {formData.feedback && !isEditingFeedback && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingFeedback(true)}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    编辑
+                  </Button>
                 )}
-              </CardTitle>
+              </div>
               <CardDescription>
                 {formData.feedback ? "AI已自动生成反馈，您可手动调整" : "面试反馈和改进建议"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="feedback">反馈总结</Label>
-                <Textarea
-                  id="feedback"
-                  placeholder="面试反馈和改进建议..."
-                  value={formData.feedback}
-                  onChange={(e) => handleInputChange("feedback", e.target.value)}
-                  rows={6}
-                  className={formData.feedback ? "bg-green-50" : ""}
-                />
-                {formData.feedback && (
+              {!formData.feedback ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-sm">反馈总结将在这里显示</p>
+                  <p className="text-xs text-gray-400 mt-1">完成AI分析后自动生成</p>
+                </div>
+              ) : isEditingFeedback ? (
+                <div className="space-y-2">
+                  <Label htmlFor="feedback">反馈总结</Label>
+                  <Textarea
+                    id="feedback"
+                    placeholder="面试反馈和改进建议..."
+                    value={formData.feedback}
+                    onChange={(e) => handleInputChange("feedback", e.target.value)}
+                    rows={6}
+                    className="bg-green-50"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setIsEditingFeedback(false)}
+                    >
+                      保存
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingFeedback(false)}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-900">
+                      {formData.feedback}
+                    </pre>
+                  </div>
                   <p className="text-xs text-green-600">✓ AI已自动生成</p>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

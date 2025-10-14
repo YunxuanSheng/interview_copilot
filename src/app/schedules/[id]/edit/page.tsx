@@ -337,7 +337,7 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
                     <SelectValue placeholder="选择面试状态" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scheduled">已安排</SelectItem>
+                    <SelectItem value="scheduled">待面试</SelectItem>
                     <SelectItem value="completed">已完成</SelectItem>
                     <SelectItem value="cancelled">已取消</SelectItem>
                   </SelectContent>

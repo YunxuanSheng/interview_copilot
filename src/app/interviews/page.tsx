@@ -91,8 +91,12 @@ export default function InterviewsPage() {
   const fetchRecords = async () => {
     try {
       const response = await fetch("/api/interviews")
-      const data = await response.json()
-      setRecords(data)
+      if (response.ok) {
+        const data = await response.json()
+        setRecords(data)
+      } else {
+        console.error("Failed to fetch interview records:", response.statusText)
+      }
     } catch (error) {
       console.error("Failed to fetch interview records:", error)
     } finally {
@@ -103,8 +107,12 @@ export default function InterviewsPage() {
   const fetchSchedules = async () => {
     try {
       const response = await fetch("/api/schedules")
-      const data = await response.json()
-      setSchedules(data)
+      if (response.ok) {
+        const data = await response.json()
+        setSchedules(data)
+      } else {
+        console.error("Failed to fetch schedules:", response.statusText)
+      }
     } catch (error) {
       console.error("Failed to fetch schedules:", error)
     }

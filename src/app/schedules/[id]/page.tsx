@@ -99,7 +99,7 @@ export default function ScheduleDetailPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "scheduled":
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">已安排</Badge>
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">待面试</Badge>
       case "completed":
         return <Badge variant="secondary" className="bg-green-100 text-green-800">已完成</Badge>
       case "cancelled":

@@ -103,12 +103,31 @@ export default function Dashboard() {
     try {
       const response = await fetch("/api/dashboard")
       const data = await response.json()
-      setStats(data.stats)
-      setUpcomingInterviews(data.upcomingInterviews)
+      
+      // 确保 stats 对象存在且包含所有必要的属性
+      if (data.stats) {
+        setStats({
+          totalSchedules: data.stats.totalSchedules || 0,
+          completedInterviews: data.stats.completedInterviews || 0,
+          totalExperiences: data.stats.totalExperiences || 0,
+          upcomingInterviews: data.stats.upcomingInterviews || 0,
+          totalProjects: data.stats.totalProjects || 0
+        })
+      }
+      
+      setUpcomingInterviews(data.upcomingInterviews || [])
       setAllInterviews(data.allInterviews || [])
       setRecentExperiences(data.recentExperiences || [])
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error)
+      // 在错误情况下，确保 stats 保持初始状态
+      setStats({
+        totalSchedules: 0,
+        completedInterviews: 0,
+        totalExperiences: 0,
+        upcomingInterviews: 0,
+        totalProjects: 0
+      })
     } finally {
       setIsLoading(false)
     }
@@ -268,7 +287,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="p-6 bg-white rounded-lg shadow-sm border">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <Calendar className="w-6 h-6 text-blue-600" />
+                <CalendarIcon className="w-6 h-6 text-blue-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">面试日程管理</h3>
               <p className="text-sm text-gray-600">智能管理面试安排，支持日历视图</p>
@@ -329,7 +348,7 @@ export default function Dashboard() {
           欢迎回来，{session.user?.name || "用户"}！
         </h1>
         <p className="text-blue-100">
-          今天有 {stats.upcomingInterviews} 场面试安排，继续加油！
+          今天有 {stats?.upcomingInterviews || 0} 场面试安排，继续加油！
         </p>
       </div>
 
@@ -345,15 +364,15 @@ export default function Dashboard() {
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">{stats.totalSchedules}</div>
+                  <div className="text-3xl font-bold text-blue-600">{stats?.totalSchedules || 0}</div>
                   <p className="text-sm text-muted-foreground">总面试</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{stats.completedInterviews}</div>
+                  <div className="text-3xl font-bold text-green-600">{stats?.completedInterviews || 0}</div>
                   <p className="text-sm text-muted-foreground">已完成</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-600">{stats.totalSchedules - stats.completedInterviews}</div>
+                  <div className="text-3xl font-bold text-orange-600">{(stats?.totalSchedules || 0) - (stats?.completedInterviews || 0)}</div>
                   <p className="text-sm text-muted-foreground">待完成</p>
                 </div>
               </div>
@@ -371,11 +390,11 @@ export default function Dashboard() {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">{stats.totalExperiences}</div>
+                  <div className="text-3xl font-bold text-purple-600">{stats?.totalExperiences || 0}</div>
                   <p className="text-sm text-muted-foreground">面经题目</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-indigo-600">{stats.totalProjects || 0}</div>
+                  <div className="text-3xl font-bold text-indigo-600">{stats?.totalProjects || 0}</div>
                   <p className="text-sm text-muted-foreground">整理项目</p>
                 </div>
               </div>
@@ -550,7 +569,7 @@ export default function Dashboard() {
             <CardDescription>最近的面试安排</CardDescription>
           </CardHeader>
           <CardContent>
-            {upcomingInterviews.length === 0 ? (
+            {!upcomingInterviews || upcomingInterviews.length === 0 ? (
               <div className="text-center py-6 text-gray-500">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>暂无即将到来的面试</p>
@@ -624,7 +643,7 @@ export default function Dashboard() {
                               <span className="text-white font-bold text-sm">{index + 1}</span>
                             </div>
                             <div>
-                              <h3 className="font-semibold text-gray-900">{experience.title}</h3>
+                              <h3 className="font-semibold text-gray-900">{experience.questionText}</h3>
                               <p className="text-sm text-gray-600">{experience.company}</p>
                             </div>
                           </div>
@@ -636,13 +655,13 @@ export default function Dashboard() {
                         <div className="space-y-3">
                           <div>
                             <h4 className="text-sm font-medium text-gray-700 mb-2">题目描述：</h4>
-                            <p className="text-sm text-gray-600 line-clamp-3">{experience.description}</p>
+                            <p className="text-sm text-gray-600 line-clamp-3">{experience.questionText}</p>
                           </div>
                           
-                          {experience.solution && (
+                          {experience.answerText && (
                             <div>
                               <h4 className="text-sm font-medium text-gray-700 mb-2">解题思路：</h4>
-                              <p className="text-sm text-gray-600 line-clamp-2">{experience.solution}</p>
+                              <p className="text-sm text-gray-600 line-clamp-2">{experience.answerText}</p>
                             </div>
                           )}
                           

@@ -203,10 +203,9 @@ export async function GET(_request: NextRequest) {
       take: 5,
       select: {
         id: true,
-        title: true,
+        questionText: true,
         company: true,
-        description: true,
-        solution: true,
+        answerText: true,
         difficulty: true,
         tags: true,
         createdAt: true

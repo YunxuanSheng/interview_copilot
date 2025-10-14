@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Plus, Search, Clock, Users, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, X } from "lucide-react"
+import { Calendar, Plus, Search, Clock, Users, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, X, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { format, addDays, isToday, isTomorrow, isYesterday } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { toast } from "sonner"
 // @ts-expect-error - react-big-calendar types are not fully compatible
 import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
@@ -51,6 +52,8 @@ export default function SchedulesPage() {
     id: string
   }>>([])
   const [isHoveringCard, setIsHoveringCard] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (session) {
@@ -92,6 +95,29 @@ export default function SchedulesPage() {
       setInterviewRecords(data)
     } catch (error) {
       console.error("Failed to fetch interview records:", error)
+    }
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/schedules/${scheduleId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        // 从列表中移除已删除的面试安排
+        setSchedules(prev => prev.filter(schedule => schedule.id !== scheduleId))
+        setDeleteConfirmId(null)
+        toast.success("面试安排删除成功")
+      } else {
+        toast.error("删除失败，请重试")
+      }
+    } catch (error) {
+      console.error("删除面试安排时出错:", error)
+      toast.error("删除失败，请重试")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -644,7 +670,7 @@ export default function SchedulesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">所有状态</SelectItem>
-                  <SelectItem value="scheduled">已安排</SelectItem>
+                  <SelectItem value="scheduled">待面试</SelectItem>
                   <SelectItem value="completed">已完成</SelectItem>
                   <SelectItem value="cancelled">已取消</SelectItem>
                 </SelectContent>
@@ -784,6 +810,14 @@ export default function SchedulesPage() {
                               </a>
                             </Button>
                           )}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setDeleteConfirmId(schedule.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -794,6 +828,44 @@ export default function SchedulesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 删除确认对话框 */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">确认删除</h3>
+                <p className="text-sm text-gray-600">此操作无法撤销</p>
+              </div>
+            </div>
+            
+            <p className="text-gray-700 mb-6">
+              您确定要删除这个面试安排吗？删除后将无法恢复。
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={isDeleting}
+              >
+                取消
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteSchedule(deleteConfirmId)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "删除中..." : "确认删除"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

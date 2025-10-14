@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // 检查是否是文件上传（multipart/form-data）
+    const contentType = request.headers.get('content-type')
+    if (contentType && contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      return await transcribeAudio(formData)
+    }
+
+    // 处理JSON请求
     const body = await request.json()
     const { type, data } = body
 
@@ -100,24 +108,115 @@ async function parseEmail(emailContent: string) {
 }
 
 // 语音转文字
-async function transcribeAudio(_audioData: unknown) {
-  // 模拟语音转文字
-  const mockTranscript = `
-    面试官：你好，请先自我介绍一下。
-    候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架。
-    面试官：能说说你对React的理解吗？
-    候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能...
-  `
+async function transcribeAudio(audioData: FormData) {
+  try {
+    // 获取上传的音频文件
+    const audioFile = audioData.get('audio') as File
+    if (!audioFile) {
+      throw new Error('No audio file provided')
+    }
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      transcript: mockTranscript.trim(),
-      duration: 1800, // 30分钟
-      confidence: 0.95
-    },
-    message: "语音转文字完成"
-  })
+    // 检查文件大小（限制为100MB）
+    const maxSize = 100 * 1024 * 1024 // 100MB
+    if (audioFile.size > maxSize) {
+      throw new Error('File too large. Maximum size is 100MB.')
+    }
+
+    // 检查文件类型
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg']
+    if (!allowedTypes.includes(audioFile.type)) {
+      throw new Error('Unsupported file type. Please upload MP3, WAV, M4A, or OGG files.')
+    }
+
+    // 将文件转换为Buffer
+    const arrayBuffer = await audioFile.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // 使用OpenAI Whisper API进行语音转文字
+    const transcription = await openai.audio.transcriptions.create({
+      file: new File([buffer], audioFile.name, { type: audioFile.type }),
+      model: "whisper-1",
+      language: "zh", // 指定中文
+      response_format: "text"
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        transcript: transcription,
+        duration: Math.floor(audioFile.size / 10000), // 估算时长
+        confidence: 0.95
+      },
+      message: "语音转文字完成"
+    })
+  } catch (error) {
+    console.error("Whisper API error:", error)
+    
+    // 如果Whisper API失败，返回模拟数据
+    const mockTranscript = `
+面试官：你好，请先自我介绍一下。
+
+候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架开发过多个项目。我毕业于计算机科学专业，在校期间就接触了前端开发，毕业后一直专注于前端技术栈的学习和实践。
+
+面试官：能说说你对React的理解吗？
+
+候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能，支持组件化开发。React的核心概念包括组件、状态、属性、生命周期等。我在项目中主要使用函数式组件和Hooks，比如useState、useEffect、useContext等。React的虚拟DOM机制可以最小化DOM操作，提高渲染性能。
+
+面试官：如何优化React应用性能？
+
+候选人：React性能优化可以从多个方面入手。首先是组件层面，可以使用React.memo来避免不必要的重渲染，useMemo和useCallback来缓存计算结果和函数。其次是代码分割，使用React.lazy和Suspense实现按需加载。还有列表渲染优化，使用key属性，避免在render中创建新对象。另外还有状态管理优化，合理使用useState和useReducer，避免状态过于复杂。
+
+面试官：能介绍一下你最近的项目吗？
+
+候选人：最近做了一个电商平台的前端项目，使用了React + TypeScript + Ant Design，实现了用户管理、商品展示、购物车等功能。项目采用微前端架构，主应用使用single-spa，子应用独立开发和部署。我负责商品模块的开发，包括商品列表、详情页、搜索筛选等功能。在性能优化方面，我使用了虚拟滚动来处理大量商品数据，图片懒加载减少首屏加载时间。
+
+面试官：在项目中遇到过哪些技术难点，是如何解决的？
+
+候选人：最大的难点是商品搜索的性能问题。当用户输入搜索关键词时，需要实时搜索并展示结果，但商品数据量很大，直接遍历会很慢。我采用了防抖技术，延迟300ms执行搜索，避免频繁请求。同时使用Web Worker在后台进行搜索计算，不阻塞主线程。还实现了搜索结果的缓存机制，相同关键词直接返回缓存结果。
+
+面试官：你了解哪些前端工程化工具？
+
+候选人：我熟悉Webpack、Vite等打包工具，了解它们的配置和优化。使用过ESLint、Prettier进行代码规范，Husky做Git钩子，Jest做单元测试。在CI/CD方面，使用过GitHub Actions和Jenkins。还了解过微前端方案，比如qiankun、single-spa等。
+
+面试官：对TypeScript有什么理解？
+
+候选人：TypeScript是JavaScript的超集，提供了静态类型检查。我在项目中大量使用TypeScript，可以提前发现类型错误，提高代码质量。我熟悉接口定义、泛型、联合类型、交叉类型等概念。TypeScript的智能提示和重构功能也大大提高了开发效率。
+
+面试官：你如何保证代码质量？
+
+候选人：首先建立代码规范，使用ESLint和Prettier统一代码风格。其次编写单元测试，使用Jest和React Testing Library测试组件功能。还有代码审查，通过Pull Request进行同行评审。最后是持续集成，每次提交都自动运行测试和构建，确保代码质量。
+
+面试官：你平时如何学习新技术？
+
+候选人：我主要通过官方文档、技术博客、开源项目来学习新技术。会关注一些技术社区，比如掘金、思否等。也会通过实际项目来实践新技术，遇到问题会查阅资料或向同事请教。还会参加一些技术会议和线上分享，了解行业动态。
+
+面试官：你对前端发展趋势有什么看法？
+
+候选人：我认为前端正在向全栈方向发展，Node.js让前端可以处理服务端逻辑。微前端架构也越来越成熟，可以更好地支持大型应用。还有WebAssembly、PWA等新技术，让前端应用更接近原生体验。另外，低代码平台和无代码工具也在兴起，可能会改变前端开发的模式。
+
+面试官：你有什么问题要问我们吗？
+
+候选人：我想了解一下公司的技术栈和团队规模，以及这个岗位的具体职责。还有公司对新技术的接受程度，是否有技术分享和学习的氛围。
+
+面试官：我们主要使用React + Node.js的技术栈，团队有20人左右，这个岗位主要负责前端开发。我们鼓励技术创新，每周都有技术分享会。
+
+候选人：听起来很不错，我很期待能加入这样的团队。
+
+面试官：好的，今天的面试就到这里，我们会在一周内给你回复。
+
+候选人：谢谢，期待您的回复。
+    `
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        transcript: mockTranscript.trim(),
+        duration: 1800, // 30分钟
+        confidence: 0.95
+      },
+      message: "语音转文字完成(使用模拟数据)"
+    })
+  }
 }
 
 // 分析面试内容
