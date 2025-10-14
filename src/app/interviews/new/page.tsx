@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles, Edit, TrendingUp } from "lucide-react"
+import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles, Edit, TrendingUp, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -39,7 +39,7 @@ export default function NewInterviewPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [audioFile, setAudioFile] = useState<File | null>(null)
-  const [_audioUrl, setAudioUrl] = useState<string>("")
+  const [audioUrl, setAudioUrl] = useState<string>("")
   const [_analysis, setAnalysis] = useState<{
     questionAnalysis: Array<{
       question: string
@@ -82,15 +82,83 @@ export default function NewInterviewPage() {
     }
   }
 
+  const validateAndSetFile = (file: File) => {
+    // 验证文件类型
+    const allowedTypes = [
+      'audio/mpeg', 'audio/mp3', 'audio/wav', 
+      'audio/m4a', 'audio/mp4', 'audio/x-m4a',
+      'audio/ogg', 'audio/webm'
+    ]
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("不支持的文件类型，请上传 MP3、WAV、M4A、OGG 或 WebM 格式的音频文件")
+      return false
+    }
+
+    // 验证文件大小（100MB限制）
+    const maxSize = 100 * 1024 * 1024 // 100MB
+    if (file.size > maxSize) {
+      toast.error("文件过大，请上传小于 100MB 的音频文件")
+      return false
+    }
+
+    // 清理之前的文件URL
+    if (audioFile) {
+      URL.revokeObjectURL(audioUrl)
+    }
+
+    setAudioFile(file)
+    const url = URL.createObjectURL(file)
+    setAudioUrl(url)
+    toast.success(`录音文件上传成功: ${file.name}`)
+    return true
+  }
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setAudioFile(file)
-      const url = URL.createObjectURL(file)
-      setAudioUrl(url)
-      toast.success("录音文件上传成功")
+      validateAndSetFile(file)
     }
   }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    const files = event.dataTransfer.files
+    if (files.length > 0) {
+      const file = files[0]
+      validateAndSetFile(file)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    if (audioFile) {
+      URL.revokeObjectURL(audioUrl)
+      setAudioFile(null)
+      setAudioUrl("")
+      setFormData(prev => ({ ...prev, transcript: "" }))
+      toast.success("文件已移除")
+    }
+  }
+
+  // 组件卸载时清理文件URL
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl)
+      }
+    }
+  }, [audioUrl])
 
   const handleTranscribe = async () => {
     if (!audioFile) {
@@ -125,7 +193,20 @@ export default function NewInterviewPage() {
       }
     } catch (error) {
       console.error("Transcribe error:", error)
-      toast.error("转文字失败，请重试")
+      
+      // 根据错误类型提供更具体的错误信息
+      let errorMessage = "转文字失败，请重试"
+      if (error instanceof Error) {
+        if (error.message.includes("File too large")) {
+          errorMessage = "文件过大，请上传小于 100MB 的音频文件"
+        } else if (error.message.includes("Unsupported file type")) {
+          errorMessage = "不支持的文件类型，请上传支持的音频格式"
+        } else if (error.message.includes("Network")) {
+          errorMessage = "网络错误，请检查网络连接后重试"
+        }
+      }
+      
+      toast.error(errorMessage)
       
       // 如果真实API失败，提供模拟数据作为fallback
       const mockTranscript = `
@@ -296,6 +377,11 @@ export default function NewInterviewPage() {
       ...prev,
       [field]: value
     }))
+    
+    // 如果选择了面试安排，关闭快速创建
+    if (field === "scheduleId" && value && value !== "skip") {
+      setShowQuickCreate(false)
+    }
   }
 
   const handleQuickCreateChange = (field: string, value: string | number) => {
@@ -342,6 +428,18 @@ export default function NewInterviewPage() {
     }
   }
 
+  const handleClearSchedule = () => {
+    setFormData(prev => ({ ...prev, scheduleId: "" }))
+  }
+
+  const handleToggleQuickCreate = () => {
+    if (!showQuickCreate) {
+      // 如果开启快速创建，清空已选择的面试安排
+      setFormData(prev => ({ ...prev, scheduleId: "" }))
+    }
+    setShowQuickCreate(!showQuickCreate)
+  }
+
   const addQuestion = () => {
     const newQuestion: Question = {
       id: `manual-${Math.random().toString(36).substr(2, 9)}`,
@@ -382,7 +480,7 @@ export default function NewInterviewPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
@@ -398,9 +496,9 @@ export default function NewInterviewPage() {
       </div>
 
       {/* Form */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Main Form */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-3 space-y-6">
           {/* Schedule Selection */}
           <Card>
             <CardHeader>
@@ -414,7 +512,20 @@ export default function NewInterviewPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <Label htmlFor="scheduleId">面试安排</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="scheduleId">面试安排</Label>
+                  {formData.scheduleId && formData.scheduleId !== "skip" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSchedule}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
                 <Select value={formData.scheduleId} onValueChange={(value) => handleInputChange("scheduleId", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="选择面试安排（可选）" />
@@ -467,12 +578,18 @@ export default function NewInterviewPage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setShowQuickCreate(!showQuickCreate)}
+                  onClick={handleToggleQuickCreate}
+                  disabled={!!(formData.scheduleId && formData.scheduleId !== "skip")}
                   className="w-full"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   {showQuickCreate ? "取消创建" : "快速创建面试安排"}
                 </Button>
+                {formData.scheduleId && formData.scheduleId !== "skip" && (
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    已选择面试安排，无法快速创建
+                  </p>
+                )}
                 
                 {showQuickCreate && (
                   <div className="mt-4 p-6 border rounded-lg bg-gray-50 space-y-4">
@@ -550,13 +667,25 @@ export default function NewInterviewPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p className="text-sm text-gray-600 mb-4">
                   点击上传或拖拽录音文件到此处
                 </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  支持 MP3、WAV、M4A、OGG、WebM 格式，最大 100MB
+                </p>
                 <Button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    fileInputRef.current?.click()
+                  }}
                   variant="outline"
                 >
                   选择文件
@@ -564,7 +693,7 @@ export default function NewInterviewPage() {
                 <Input
                   ref={fileInputRef}
                   type="file"
-                  accept="audio/*"
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/m4a,audio/mp4,audio/x-m4a,audio/ogg,audio/webm"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -572,13 +701,24 @@ export default function NewInterviewPage() {
 
               {audioFile && (
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-green-600" />
-                    <span className="font-medium text-green-800">文件已上传</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-green-600" />
+                      <span className="font-medium text-green-800">文件已上传</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                   <p className="text-sm text-green-700">{audioFile.name}</p>
                   <p className="text-xs text-green-600">
-                    {(audioFile.size / 1024 / 1024).toFixed(2)} MB
+                    {(audioFile.size / 1024 / 1024).toFixed(2)} MB · {audioFile.type}
                   </p>
                 </div>
               )}
@@ -636,6 +776,160 @@ export default function NewInterviewPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Analysis - 在窄屏幕上显示 */}
+          <div className="xl:hidden space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle>AI分析</CardTitle>
+                    {formData.aiAnalysis && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        已生成
+                      </span>
+                    )}
+                  </div>
+                  {formData.aiAnalysis && !isEditingAiAnalysis && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingAiAnalysis(true)}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      编辑
+                    </Button>
+                  )}
+                </div>
+                <CardDescription>
+                  {formData.aiAnalysis ? "AI已自动分析，您可手动调整" : "AI对整体面试表现的分析"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!formData.aiAnalysis ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm">AI分析结果将在这里显示</p>
+                    <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击"AI智能分析"</p>
+                  </div>
+                ) : isEditingAiAnalysis ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="aiAnalysis">AI分析结果</Label>
+                    <Textarea
+                      id="aiAnalysis"
+                      placeholder="AI分析结果和建议..."
+                      value={formData.aiAnalysis}
+                      onChange={(e) => handleInputChange("aiAnalysis", e.target.value)}
+                      rows={6}
+                      className="bg-blue-50"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setIsEditingAiAnalysis(false)}
+                      >
+                        保存
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingAiAnalysis(false)}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-900">
+                        {formData.aiAnalysis}
+                      </pre>
+                    </div>
+                    <p className="text-xs text-blue-600">✓ AI已自动分析</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Feedback - 在窄屏幕上显示 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle>反馈总结</CardTitle>
+                    {formData.feedback && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        AI生成
+                      </span>
+                    )}
+                  </div>
+                  {formData.feedback && !isEditingFeedback && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingFeedback(true)}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      编辑
+                    </Button>
+                  )}
+                </div>
+                <CardDescription>
+                  {formData.feedback ? "AI已自动生成反馈，您可手动调整" : "面试反馈和改进建议"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!formData.feedback ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm">反馈总结将在这里显示</p>
+                    <p className="text-xs text-gray-400 mt-1">完成AI分析后自动生成</p>
+                  </div>
+                ) : isEditingFeedback ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="feedback">反馈总结</Label>
+                    <Textarea
+                      id="feedback"
+                      placeholder="面试反馈和改进建议..."
+                      value={formData.feedback}
+                      onChange={(e) => handleInputChange("feedback", e.target.value)}
+                      rows={6}
+                      className="bg-green-50"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setIsEditingFeedback(false)}
+                      >
+                        保存
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingFeedback(false)}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-900">
+                        {formData.feedback}
+                      </pre>
+                    </div>
+                    <p className="text-xs text-green-600">✓ AI已自动生成</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Questions */}
           <Card>
@@ -738,9 +1032,8 @@ export default function NewInterviewPage() {
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-
+        {/* Sidebar - 在大屏幕上显示 */}
+        <div className="hidden xl:block xl:col-span-2 space-y-6">
           {/* AI Analysis */}
           <Card>
             <CardHeader>

@@ -110,11 +110,20 @@ async function parseEmail(emailContent: string) {
 // 语音转文字
 async function transcribeAudio(audioData: FormData) {
   try {
+    console.log("开始语音转文字处理...")
+    
+    // 检查OpenAI API密钥
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured')
+    }
+    console.log("✓ OpenAI API密钥已配置")
+
     // 获取上传的音频文件
     const audioFile = audioData.get('audio') as File
     if (!audioFile) {
       throw new Error('No audio file provided')
     }
+    console.log(`✓ 音频文件: ${audioFile.name}, 大小: ${audioFile.size} bytes, 类型: ${audioFile.type}`)
 
     // 检查文件大小（限制为100MB）
     const maxSize = 100 * 1024 * 1024 // 100MB
@@ -123,22 +132,29 @@ async function transcribeAudio(audioData: FormData) {
     }
 
     // 检查文件类型
-    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg']
+    const allowedTypes = [
+      'audio/mpeg', 'audio/mp3', 'audio/wav', 
+      'audio/m4a', 'audio/mp4', 'audio/x-m4a',
+      'audio/ogg', 'audio/webm'
+    ]
     if (!allowedTypes.includes(audioFile.type)) {
-      throw new Error('Unsupported file type. Please upload MP3, WAV, M4A, or OGG files.')
+      throw new Error('Unsupported file type. Please upload MP3, WAV, M4A, OGG, or WebM files.')
     }
 
     // 将文件转换为Buffer
     const arrayBuffer = await audioFile.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+    console.log("✓ 文件转换为Buffer完成")
 
     // 使用OpenAI Whisper API进行语音转文字
+    console.log("开始调用OpenAI Whisper API...")
     const transcription = await openai.audio.transcriptions.create({
       file: new File([buffer], audioFile.name, { type: audioFile.type }),
       model: "whisper-1",
       language: "zh", // 指定中文
       response_format: "text"
     })
+    console.log("✓ Whisper API调用成功")
 
     return NextResponse.json({
       success: true,
@@ -151,6 +167,11 @@ async function transcribeAudio(audioData: FormData) {
     })
   } catch (error) {
     console.error("Whisper API error:", error)
+    console.error("错误详情:", {
+      message: error.message,
+      status: error.status,
+      code: error.code
+    })
     
     // 如果Whisper API失败，返回模拟数据
     const mockTranscript = `
