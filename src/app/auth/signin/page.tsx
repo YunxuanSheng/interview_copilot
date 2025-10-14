@@ -12,7 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 export default function SignIn() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isRegister, setIsRegister] = useState(false)
   const router = useRouter()
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
@@ -30,9 +32,48 @@ export default function SignIn() {
         // 登录成功，跳转到首页
         router.push("/")
         router.refresh()
+      } else {
+        alert("登录失败，请检查邮箱和密码")
       }
     } catch (error) {
       console.error("Sign in error:", error)
+      alert("登录出错，请稍后重试")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert("注册成功！请登录")
+        setIsRegister(false)
+        setEmail("")
+        setPassword("")
+        setName("")
+      } else {
+        alert(data.error || "注册失败")
+      }
+    } catch (error) {
+      console.error("Register error:", error)
+      alert("注册出错，请稍后重试")
     } finally {
       setIsLoading(false)
     }
@@ -105,7 +146,20 @@ export default function SignIn() {
             </TabsList>
             
             <TabsContent value="credentials">
-              <form onSubmit={handleCredentialsSignIn} className="space-y-4">
+              <form onSubmit={isRegister ? handleRegister : handleCredentialsSignIn} className="space-y-4">
+                {isRegister && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name">姓名</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="请输入您的姓名"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">邮箱</Label>
                   <Input
@@ -122,15 +176,29 @@ export default function SignIn() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="输入密码"
+                    placeholder={isRegister ? "至少6个字符" : "输入密码"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "登录中..." : "登录"}
+                  {isLoading ? (isRegister ? "注册中..." : "登录中...") : (isRegister ? "注册" : "登录")}
                 </Button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRegister(!isRegister)
+                      setEmail("")
+                      setPassword("")
+                      setName("")
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    {isRegister ? "已有账户？点击登录" : "没有账户？点击注册"}
+                  </button>
+                </div>
               </form>
             </TabsContent>
             

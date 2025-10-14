@@ -6,10 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Plus, Search, Calendar, Building, MessageSquare, Mic, TrendingUp, Target } from "lucide-react"
+import { FileText, Search, Calendar, Building, MessageSquare, Mic, Clock, Users, CalendarDays, ExternalLink, X } from "lucide-react"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, addDays, isToday, isTomorrow, isYesterday } from "date-fns"
 import { zhCN } from "date-fns/locale"
+// @ts-expect-error - react-big-calendar types are not fully compatible
+import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
+import moment from 'moment'
+import 'react-big-calendar/lib/css/react-big-calendar.css'
+
+// 设置moment本地化
+moment.locale('zh-cn')
+const localizer = momentLocalizer(moment)
 
 interface InterviewRecord {
   id: string
@@ -34,17 +42,51 @@ interface InterviewRecord {
   }[]
 }
 
+interface InterviewSchedule {
+  id: string
+  company: string
+  position: string
+  department?: string
+  interviewDate: string
+  interviewLink?: string
+  round: number
+  tags?: string
+  notes?: string
+  status: string
+  createdAt: string
+}
+
 export default function InterviewsPage() {
   const { data: session } = useSession()
   const [records, setRecords] = useState<InterviewRecord[]>([])
+  const [schedules, setSchedules] = useState<InterviewSchedule[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
+  const [isHoveringCard, setIsHoveringCard] = useState(false)
 
   useEffect(() => {
     if (session) {
       fetchRecords()
+      fetchSchedules()
     }
   }, [session])
+
+  // 点击外部关闭hover卡片
+  useEffect(() => {
+    const handleClickOutside = (_event: MouseEvent) => {
+      if (hoveredEvent && !isHoveringCard) {
+        setHoveredEvent(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [hoveredEvent, isHoveringCard])
 
   const fetchRecords = async () => {
     try {
@@ -58,11 +100,190 @@ export default function InterviewsPage() {
     }
   }
 
+  const fetchSchedules = async () => {
+    try {
+      const response = await fetch("/api/schedules")
+      const data = await response.json()
+      setSchedules(data)
+    } catch (error) {
+      console.error("Failed to fetch schedules:", error)
+    }
+  }
+
   const filteredRecords = records.filter(record => 
     record.schedule.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.schedule.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.transcript?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // 最近三天面试
+  const recentSchedules = schedules.filter(schedule => {
+    const scheduleDate = new Date(schedule.interviewDate)
+    const today = new Date()
+    const threeDaysAgo = addDays(today, -3)
+    const threeDaysLater = addDays(today, 3)
+    
+    return scheduleDate >= threeDaysAgo && scheduleDate <= threeDaysLater
+  }).sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime())
+
+  // 按日期分组最近三天
+  const groupedRecentSchedules = recentSchedules.reduce((acc, schedule) => {
+    const date = format(new Date(schedule.interviewDate), "yyyy-MM-dd")
+    if (!acc[date]) {
+      acc[date] = []
+    }
+    acc[date].push(schedule)
+    return acc
+  }, {} as Record<string, InterviewSchedule[]>)
+
+  // 日历事件数据
+  const calendarEvents = schedules.map(schedule => {
+    const interviewDate = new Date(schedule.interviewDate)
+    // 设置为同一天的开始和结束，避免跨天显示
+    const startOfDay = new Date(interviewDate)
+    startOfDay.setHours(9, 0, 0, 0) // 上午9点开始
+    
+    const endOfDay = new Date(interviewDate)
+    endOfDay.setHours(18, 0, 0, 0) // 下午6点结束
+    
+    return {
+      id: schedule.id,
+      title: `${schedule.company} - ${schedule.position}`,
+      start: startOfDay,
+      end: endOfDay,
+      resource: schedule
+    }
+  })
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "scheduled":
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">待开始</Badge>
+      case "completed":
+        return <Badge variant="secondary" className="bg-green-100 text-green-800">已完成</Badge>
+      case "cancelled":
+        return <Badge variant="destructive" className="bg-red-100 text-red-800">已取消</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getDateLabel = (date: string) => {
+    const scheduleDate = new Date(date)
+    if (isToday(scheduleDate)) return "今天"
+    if (isTomorrow(scheduleDate)) return "明天"
+    if (isYesterday(scheduleDate)) return "昨天"
+    return format(scheduleDate, "MM月dd日", { locale: zhCN })
+  }
+
+  const getTimeLabel = (date: string) => {
+    return format(new Date(date), "HH:mm", { locale: zhCN })
+  }
+
+  // 检查面试是否已复盘
+  const hasReviewed = (scheduleId: string) => {
+    return records.some(record => record.scheduleId === scheduleId)
+  }
+
+  // 获取面试复盘记录
+  const getInterviewRecord = (scheduleId: string) => {
+    return records.find(record => record.scheduleId === scheduleId)
+  }
+
+  const eventStyleGetter = (event: {
+    resource?: InterviewSchedule
+  }) => {
+    const status = event.resource?.status
+    let backgroundColor = '#3174ad'
+    
+    switch (status) {
+      case "completed":
+        backgroundColor = '#28a745'
+        break
+      case "cancelled":
+        backgroundColor = '#dc3545'
+        break
+      case "scheduled":
+        backgroundColor = '#007bff'
+        break
+    }
+    
+    return {
+      style: {
+        backgroundColor,
+        borderRadius: '5px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+      }
+    }
+  }
+
+  const handleNavigate = (date: Date) => {
+    setCurrentDate(date)
+  }
+
+  // 自定义事件组件
+  const EventComponent = ({ event }: { event: {
+    id: string
+    title: string
+    start: Date
+    end: Date
+    resource: InterviewSchedule
+  } }) => {
+    const handleMouseEnter = (e: React.MouseEvent, eventData: { resource: InterviewSchedule }) => {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const cardWidth = 300
+      const cardHeight = 200
+      
+      // 计算最佳位置，避免超出视窗
+      let x = rect.left + rect.width / 2
+      let y = rect.bottom + 10  // 默认显示在下方
+      
+      // 水平位置调整
+      if (x + cardWidth / 2 > viewportWidth) {
+        x = viewportWidth - cardWidth / 2 - 10
+      }
+      if (x - cardWidth / 2 < 10) {
+        x = cardWidth / 2 + 10
+      }
+      
+      // 垂直位置调整 - 优先显示在下方，如果下方空间不够再显示在上方
+      if (y + cardHeight > viewportHeight - 10) {
+        y = rect.top - cardHeight - 10  // 显示在上方
+        if (y < 10) {
+          y = 10  // 确保不超出视窗顶部
+        }
+      }
+      
+      setHoverPosition({ x, y })
+      setHoveredEvent(eventData.resource)
+    }
+
+    const handleMouseLeave = () => {
+      // 延迟关闭，给用户时间移动到卡片上
+      setTimeout(() => {
+        if (!isHoveringCard) {
+          setHoveredEvent(null)
+        }
+      }, 100)
+    }
+
+    return (
+      <div
+        onMouseEnter={(e) => handleMouseEnter(e, { resource: event.resource })}
+        onMouseLeave={handleMouseLeave}
+        className="w-full h-full cursor-pointer"
+      >
+        <div className="text-xs truncate px-1">
+          {event.title}
+        </div>
+      </div>
+    )
+  }
 
   // 按公司分组，每个公司包含多个岗位
   const groupedByCompany = filteredRecords.reduce((acc, record) => {
@@ -196,58 +417,6 @@ export default function InterviewsPage() {
     company.averageScore = companyScoreCount > 0 ? companyTotalScore / companyScoreCount : 0
   })
 
-  const getProgressStatus = (position: {
-    completedRounds: number
-    totalRounds: number
-    passedRounds: number
-  }) => {
-    const { completedRounds, totalRounds, passedRounds } = position
-    
-    if (completedRounds === 0) {
-      return { status: "投递", color: "bg-gray-100 text-gray-800", icon: "📝" }
-    }
-    
-    if (completedRounds < totalRounds) {
-      return { status: "面试中", color: "bg-blue-100 text-blue-800", icon: "🔄" }
-    }
-    
-    if (completedRounds === totalRounds) {
-      if (passedRounds === totalRounds) {
-        return { status: "已通过", color: "bg-green-100 text-green-800", icon: "✅" }
-      } else if (passedRounds > 0) {
-        return { status: "部分通过", color: "bg-yellow-100 text-yellow-800", icon: "⚠️" }
-      } else {
-        return { status: "未通过", color: "bg-red-100 text-red-800", icon: "❌" }
-      }
-    }
-    
-    return { status: "进行中", color: "bg-yellow-100 text-yellow-800", icon: "⏳" }
-  }
-
-  const getCompanyStatus = (company: {
-    positions: Map<string, {
-      completedRounds: number
-      totalRounds: number
-      passedRounds: number
-    }>
-  }) => {
-    const positions = Array.from(company.positions.values())
-    const totalPositions = positions.length
-    const completedPositions = positions.filter(p => p.completedRounds > 0).length
-    const passedPositions = positions.filter(p => p.passedRounds === p.totalRounds && p.totalRounds > 0).length
-    
-    if (completedPositions === 0) {
-      return { status: "投递中", color: "bg-gray-100 text-gray-800", icon: "📝" }
-    }
-    
-    if (passedPositions === totalPositions) {
-      return { status: "全部通过", color: "bg-green-100 text-green-800", icon: "🎉" }
-    } else if (passedPositions > 0) {
-      return { status: "部分通过", color: "bg-yellow-100 text-yellow-800", icon: "⚠️" }
-    } else {
-      return { status: "面试中", color: "bg-blue-100 text-blue-800", icon: "🔄" }
-    }
-  }
 
 
   if (!session) {
@@ -255,7 +424,7 @@ export default function InterviewsPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">请先登录</h2>
-          <p className="text-gray-600 mb-6">登录后即可查看面试记录</p>
+          <p className="text-gray-600 mb-6">登录后即可查看面试复盘记录</p>
           <Button asChild>
             <Link href="/auth/signin">立即登录</Link>
           </Button>
@@ -268,7 +437,7 @@ export default function InterviewsPage() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">面试记录</h1>
+          <h1 className="text-3xl font-bold text-gray-900">面试复盘</h1>
           <div className="h-10 w-24 bg-gray-200 rounded animate-pulse"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -294,60 +463,53 @@ export default function InterviewsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">面试记录</h1>
-          <p className="text-gray-600 mt-1">管理您的面试记录和岗位进度</p>
+          <h1 className="text-3xl font-bold text-gray-900">面试复盘</h1>
+          <p className="text-gray-600 mt-1">管理您的面试复盘记录和岗位进度</p>
         </div>
         <div className="flex gap-2">
           <Button asChild className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700">
             <Link href="/interviews/new">
               <Mic className="w-4 h-4 mr-2" />
-              添加面试记录
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/schedules/new">
-              <Plus className="w-4 h-4 mr-2" />
-              添加面试安排
+              新建面试复盘
             </Link>
           </Button>
         </div>
       </div>
 
       {/* 数据看板 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <FileText className="h-6 w-6 mx-auto mb-1 text-blue-600" />
-              <p className="text-sm font-medium text-gray-600">总记录</p>
-              <p className="text-xl font-bold text-gray-900">{records.length}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card className="p-3">
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-gray-600">复盘记录</p>
+              <p className="text-lg font-bold text-gray-900">{records.length}</p>
             </div>
-          </CardContent>
+          </div>
         </Card>
         
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <MessageSquare className="h-6 w-6 mx-auto mb-1 text-purple-600" />
-              <p className="text-sm font-medium text-gray-600">总问题数</p>
-              <p className="text-xl font-bold text-gray-900">
+        <Card className="p-3">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="h-5 w-5 text-purple-600 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-gray-600">复盘问题</p>
+              <p className="text-lg font-bold text-gray-900">
                 {records.reduce((sum, r) => sum + r.questions.length, 0)}
               </p>
             </div>
-          </CardContent>
+          </div>
         </Card>
         
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <Building className="h-6 w-6 mx-auto mb-1 text-orange-600" />
-              <p className="text-sm font-medium text-gray-600">面试公司</p>
-              <p className="text-xl font-bold text-gray-900">
+        <Card className="p-3">
+          <div className="flex items-center gap-3">
+            <Building className="h-5 w-5 text-orange-600 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-gray-600">复盘公司</p>
+              <p className="text-lg font-bold text-gray-900">
                 {new Set(records.map(r => r.schedule.company)).size}
               </p>
             </div>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
@@ -366,160 +528,13 @@ export default function InterviewsPage() {
         </CardContent>
       </Card>
 
-      {/* 面试岗位进度概览 */}
-      {Object.keys(groupedByCompany).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              面试岗位进度概览
-            </CardTitle>
-            <CardDescription>
-              按公司分组的面试进度和统计概览
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {Object.values(groupedByCompany).map((company, companyIndex) => {
-                const companyStatus = getCompanyStatus(company)
-                const positions = Array.from(company.positions.values())
-                const totalPassRate = company.totalRounds > 0 ? Math.round((company.passedRounds / company.totalRounds) * 100) : 0
-                
-                return (
-                  <div key={companyIndex} className="border rounded-lg p-6 bg-white hover:shadow-md transition-shadow">
-                    {/* 公司头部信息 */}
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-xl text-gray-900 mb-2">{company.company}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Target className="w-4 h-4" />
-                            {positions.length} 个岗位
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="w-4 h-4" />
-                            {company.totalQuestions} 个问题
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {company.firstInterviewDate && 
-                              `开始: ${format(company.firstInterviewDate, "MM/dd", { locale: zhCN })}`
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      <Badge className={`${companyStatus.color} flex items-center gap-1 px-3 py-1`}>
-                        <span>{companyStatus.icon}</span>
-                        {companyStatus.status}
-                      </Badge>
-                    </div>
-                    
-                    {/* 公司总体统计 */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-blue-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-blue-600">{company.totalRecords}</div>
-                        <div className="text-sm text-blue-800">总面试</div>
-                      </div>
-                      <div className="bg-green-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-green-600">{totalPassRate}%</div>
-                        <div className="text-sm text-green-800">通过率</div>
-                      </div>
-                      <div className="bg-purple-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-purple-600">
-                          {company.averageScore > 0 ? company.averageScore.toFixed(1) : 'N/A'}
-                        </div>
-                        <div className="text-sm text-purple-800">平均分</div>
-                      </div>
-                      <div className="bg-orange-50 rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-orange-600">{company.passedRounds}</div>
-                        <div className="text-sm text-orange-800">通过轮次</div>
-                      </div>
-                    </div>
-                    
-                    {/* 岗位详情 */}
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 mb-3">岗位详情</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {positions.map((position, positionIndex) => {
-                          const progressStatus = getProgressStatus(position)
-                          const passRate = position.completedRounds > 0 ? Math.round((position.passedRounds / position.completedRounds) * 100) : 0
-                          
-                          return (
-                            <div key={positionIndex} className="p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex-1">
-                                  <h5 className="font-medium text-gray-900">{position.position}</h5>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    {position.completedRounds}/{position.totalRounds} 轮
-                                  </div>
-                                </div>
-                                <Badge className={`${progressStatus.color} text-xs`}>
-                                  {progressStatus.status}
-                                </Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="text-center">
-                                  <div className="font-semibold text-green-600">{passRate}%</div>
-                                  <div className="text-gray-600">通过率</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="font-semibold text-blue-600">
-                                    {position.averageScore > 0 ? position.averageScore.toFixed(1) : 'N/A'}
-                                  </div>
-                                  <div className="text-gray-600">平均分</div>
-                                </div>
-                              </div>
-                              
-                              {/* 轮次进度 */}
-                              <div className="mt-3">
-                                <div className="flex gap-1">
-                                  {Array.from({ length: position.totalRounds }, (_, i) => i + 1).map(round => {
-                                    const hasRecord = position.roundDetails.has(round)
-                                    const isPassed = hasRecord && position.roundDetails.get(round)!.some(record => 
-                                      record.aiAnalysis && 
-                                      (record.aiAnalysis.includes('通过') || 
-                                       record.aiAnalysis.includes('优秀') || 
-                                       record.aiAnalysis.includes('良好'))
-                                    )
-                                    return (
-                                      <div
-                                        key={round}
-                                        className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium ${
-                                          isPassed 
-                                            ? 'bg-green-200 text-green-800' 
-                                            : hasRecord 
-                                              ? 'bg-red-200 text-red-800' 
-                                              : 'bg-gray-200 text-gray-500'
-                                        }`}
-                                        title={`第${round}轮: ${isPassed ? '通过' : hasRecord ? '未通过' : '未面试'}`}
-                                      >
-                                        {round}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Records Grid */}
+      {/* Records List */}
       {Object.keys(groupedByCompany).length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? "没有找到匹配的面试记录" : "暂无面试记录"}
+              {searchTerm ? "没有找到匹配的面试复盘记录" : "暂无面试复盘记录"}
             </h3>
             <p className="text-gray-600 mb-6">
               {searchTerm 
@@ -528,92 +543,93 @@ export default function InterviewsPage() {
               }
             </p>
             <div className="flex gap-2 justify-center">
-              <Button asChild>
+              <Button asChild className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700">
                 <Link href="/interviews/new">
                   <Mic className="w-4 h-4 mr-2" />
-                  添加面试记录
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/schedules/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  添加面试安排
+                  新建面试复盘
                 </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {Object.values(groupedByCompany).map((company, companyIndex) => (
-            <Card key={companyIndex} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl">{company.company}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {Array.from(company.positions.keys()).join('、')} · {company.totalRecords}条面试记录
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getCompanyStatus(company).status === "全部通过" && (
-                      <Badge className="bg-green-100 text-green-800">已完成</Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {Array.from(company.positions.values()).map((position, positionIndex) => (
-                    <div key={positionIndex} className="border-l-4 border-blue-200 pl-4">
-                      <h4 className="font-semibold text-lg text-gray-900 mb-3">{position.position}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {position.records.map((record) => (
-                          <div key={record.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                              <h5 className="font-medium">第{record.schedule.round}轮</h5>
+        <Card>
+          <CardHeader>
+            <CardTitle>面试复盘记录</CardTitle>
+            <CardDescription>您的面试复盘历史记录</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">公司</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">职位</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">轮次</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">面试日期</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">问题数量</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">整体表现</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.values(groupedByCompany).map((company) => 
+                    Array.from(company.positions.values()).map((position) =>
+                      position.records.map((record) => (
+                        <tr key={record.id} className="border-b hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="font-medium text-gray-900">{company.company}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="secondary" className="text-xs">
+                              {position.position}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="text-xs">
+                              第{record.schedule.round}轮
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <Calendar className="w-4 h-4" />
+                              {format(new Date(record.schedule.interviewDate), "MM月dd日", { locale: zhCN })}
                             </div>
-                            
-                            <div className="space-y-2 text-sm text-gray-600">
-                              <div className="flex items-center">
-                                <Calendar className="w-4 h-4 mr-2" />
-                                {format(new Date(record.schedule.interviewDate), "MM月dd日", { locale: zhCN })}
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <MessageSquare className="w-4 h-4 mr-2" />
-                                {record.questions.length} 个问题
-                              </div>
-
-                              {record.feedback && (
-                                <p className="text-xs line-clamp-2">
-                                  {record.feedback}
-                                </p>
-                              )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <MessageSquare className="w-4 h-4" />
+                              {record.questions.length} 个问题
                             </div>
-
-                            <div className="flex gap-2 mt-3">
-                              <Button asChild variant="outline" size="sm" className="flex-1">
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm text-gray-600 max-w-xs truncate">
+                              {record.feedback || record.aiAnalysis || "暂无评价"}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <Button asChild variant="outline" size="sm">
                                 <Link href={`/interviews/${record.id}`}>
                                   查看
                                 </Link>
                               </Button>
-                              <Button asChild variant="outline" size="sm" className="flex-1">
+                              <Button asChild variant="outline" size="sm">
                                 <Link href={`/interviews/${record.id}/edit`}>
                                   编辑
                                 </Link>
                               </Button>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                          </td>
+                        </tr>
+                      ))
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
     </div>

@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
           userId: session.user.id,
           name: "电商平台重构项目",
           role: "前端开发",
+          company: "阿里巴巴",
+          department: "淘宝技术部",
+          workType: "实习",
           description: "负责公司核心电商平台的前端重构，从jQuery迁移到React，提升用户体验和开发效率。项目涉及商品展示、购物车、订单管理等核心模块，用户量达到100万+。",
           timeRange: "2023.03 - 2023.08",
           techStack: "React, TypeScript, Redux, Ant Design, Webpack",
@@ -48,6 +51,9 @@ export async function GET(request: NextRequest) {
           userId: session.user.id,
           name: "微服务架构升级",
           role: "后端开发",
+          company: "腾讯",
+          department: "微信事业群",
+          workType: "正式",
           description: "主导公司核心业务系统的微服务架构升级，将单体应用拆分为多个微服务，提升系统可扩展性和维护性。涉及用户服务、订单服务、支付服务等8个核心服务。",
           timeRange: "2022.09 - 2023.02",
           techStack: "Spring Boot, Spring Cloud, Docker, Kubernetes, Redis, MySQL",
@@ -72,6 +78,9 @@ export async function GET(request: NextRequest) {
           userId: session.user.id,
           name: "AI推荐系统优化",
           role: "算法工程师",
+          company: "字节跳动",
+          department: "推荐算法部",
+          workType: "正式",
           description: "优化公司内容推荐算法，通过引入深度学习模型和实时特征工程，将推荐准确率从75%提升到89%，用户点击率提升35%。项目涉及特征工程、模型训练、A/B测试等全流程。",
           timeRange: "2023.06 - 2023.11",
           techStack: "Python, TensorFlow, Spark, Kafka, Redis, PostgreSQL",
@@ -96,6 +105,9 @@ export async function GET(request: NextRequest) {
           userId: session.user.id,
           name: "移动端性能优化",
           role: "前端开发",
+          company: "美团",
+          department: "到店事业群",
+          workType: "外包",
           description: "负责公司移动端H5页面性能优化，通过代码分割、懒加载、缓存策略等手段，将首屏加载时间从3.2s优化到1.1s，页面交互响应时间提升60%。",
           timeRange: "2023.01 - 2023.04",
           techStack: "Vue.js, Webpack, Service Worker, CDN, 性能监控",
@@ -171,7 +183,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, role, description, timeRange, techStack } = body
+    const { name, role, company, department, workType, description, timeRange, techStack } = body
 
     if (!name || !role || !description) {
       return NextResponse.json(
@@ -185,6 +197,9 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         name,
         role,
+        company: company || null,
+        department: department || null,
+        workType: workType || null,
         description,
         timeRange: timeRange || null,
         techStack: techStack || null

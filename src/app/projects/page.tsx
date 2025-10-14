@@ -26,6 +26,9 @@ interface Project {
   id: string
   name: string
   role: string
+  company?: string
+  department?: string
+  workType?: string
   description: string
   timeRange?: string
   techStack?: string
@@ -125,6 +128,14 @@ export default function ProjectsPage() {
     return { answered, completed, draft, total: cards.length }
   }
 
+  const formatCompanyInfo = (project: Project) => {
+    const parts = []
+    if (project.company) parts.push(project.company)
+    if (project.department) parts.push(project.department)
+    if (project.workType) parts.push(project.workType)
+    return parts.length > 0 ? parts.join('-') : null
+  }
+
   if (!session) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -142,15 +153,27 @@ export default function ProjectsPage() {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">项目整理</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {[...Array(6)].map((_, i) => (
             <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-20 bg-gray-200 rounded"></div>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                  </div>
+                  <div className="flex items-center gap-6 mx-6">
+                    <div className="h-8 bg-gray-200 rounded w-12"></div>
+                    <div className="h-8 bg-gray-200 rounded w-12"></div>
+                    <div className="h-8 bg-gray-200 rounded w-12"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-gray-200 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 rounded w-8"></div>
+                    <div className="h-8 bg-gray-200 rounded w-8"></div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -199,7 +222,7 @@ export default function ProjectsPage() {
         </Select>
       </div>
 
-      {/* Projects Grid */}
+      {/* Projects List */}
       {filteredProjects.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
@@ -222,23 +245,101 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {filteredProjects.map((project) => {
             const cardStats = getCardStatusCount(project.cards)
             return (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow duration-200">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-2">{project.name}</CardTitle>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary">{project.role}</Badge>
-                        <Badge className={getStatusColor(project.status)}>
+              <Card key={project.id} className="hover:shadow-md transition-shadow duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    {/* 左侧：项目基本信息 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">
+                          {project.name}
+                        </h3>
+                        <Badge variant="secondary" className="shrink-0">
+                          {project.role}
+                        </Badge>
+                        {formatCompanyInfo(project) && (
+                          <Badge variant="outline" className="shrink-0 bg-blue-50 text-blue-700 border-blue-200">
+                            {formatCompanyInfo(project)}
+                          </Badge>
+                        )}
+                        <Badge className={`shrink-0 ${getStatusColor(project.status)}`}>
                           {getStatusText(project.status)}
                         </Badge>
                       </div>
+                      
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-1">
+                        {project.description}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+                        {/* 时间范围 */}
+                        {project.timeRange && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{project.timeRange}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 技术栈标签 */}
+                      {project.techStack && (
+                        <div className="flex flex-wrap gap-1">
+                          {project.techStack.split(",").map((tech, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {tech.trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1">
+
+                    {/* 中间：进度信息 */}
+                    <div className="flex items-center gap-6 mx-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-900">
+                          {cardStats.total}
+                        </div>
+                        <div className="text-xs text-gray-500">总卡片</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {cardStats.completed}
+                        </div>
+                        <div className="text-xs text-gray-500">已完成</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {Math.round((cardStats.completed / Math.max(cardStats.total, 1)) * 100)}%
+                        </div>
+                        <div className="text-xs text-gray-500">完成率</div>
+                      </div>
+                    </div>
+
+                    {/* 右侧：操作按钮 */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        asChild
+                        size="sm"
+                        variant={cardStats.total === 0 ? "default" : "outline"}
+                      >
+                        <Link href={`/projects/${project.id}`}>
+                          {cardStats.total === 0 ? (
+                            <>
+                              <Sparkles className="w-4 h-4 mr-1" />
+                              生成卡片
+                            </>
+                          ) : (
+                            "查看项目"
+                          )}
+                        </Link>
+                      </Button>
+                      
                       <Button
                         variant="ghost"
                         size="sm"
@@ -246,6 +347,7 @@ export default function ProjectsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
+                      
                       <Button
                         variant="ghost"
                         size="sm"
@@ -256,79 +358,18 @@ export default function ProjectsPage() {
                       </Button>
                     </div>
                   </div>
-                  <CardDescription className="line-clamp-2">
-                    {project.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Tech Stack */}
-                    {project.techStack && (
-                      <div className="flex flex-wrap gap-1">
-                        {project.techStack.split(",").slice(0, 3).map((tech, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {tech.trim()}
-                          </Badge>
-                        ))}
-                        {project.techStack.split(",").length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{project.techStack.split(",").length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Time Range */}
-                    {project.timeRange && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {project.timeRange}
-                      </div>
-                    )}
-
-                    {/* Card Stats */}
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <FileText className="w-4 h-4 text-blue-600" />
-                          <span>{cardStats.total} 卡片</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>{cardStats.completed} 完成</span>
-                        </div>
-                      </div>
-                      <div className="text-gray-500">
-                        {Math.round((cardStats.completed / Math.max(cardStats.total, 1)) * 100)}%
+                  {/* 进度条 */}
+                  {cardStats.total > 0 && (
+                    <div className="mt-4">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(cardStats.completed / Math.max(cardStats.total, 1)) * 100}%` }}
+                        ></div>
                       </div>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(cardStats.completed / Math.max(cardStats.total, 1)) * 100}%` }}
-                      ></div>
-                    </div>
-
-                    {/* Action Button */}
-                    <Button
-                      asChild
-                      className="w-full"
-                      variant={cardStats.total === 0 ? "default" : "outline"}
-                    >
-                      <Link href={`/projects/${project.id}`}>
-                        {cardStats.total === 0 ? (
-                          <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            生成卡片
-                          </>
-                        ) : (
-                          "管理卡片"
-                        )}
-                      </Link>
-                    </Button>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )

@@ -92,6 +92,19 @@ export async function GET(_request: NextRequest) {
           notes: "第一轮面试，主要考察机器学习算法和深度学习",
           status: "scheduled",
           createdAt: new Date().toISOString()
+        },
+        {
+          id: "7",
+          company: "华为",
+          position: "云计算工程师",
+          department: "云服务部",
+          interviewDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3天前
+          interviewLink: "",
+          round: 1,
+          tags: "技术面试,云计算,Docker",
+          notes: "第一轮面试已完成，技术基础扎实，建议在微服务架构方面加强学习。",
+          status: "completed",
+          createdAt: new Date().toISOString()
         }
       ]
       return NextResponse.json(mockSchedules)

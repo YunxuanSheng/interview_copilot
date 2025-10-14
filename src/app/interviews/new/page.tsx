@@ -153,7 +153,7 @@ export default function NewInterviewPage() {
           answer: string
           evaluation: string
         }, index: number) => ({
-          id: Date.now().toString() + index,
+          id: `ai-${index}-${Math.random().toString(36).substr(2, 9)}`,
           questionText: q.question,
           userAnswer: q.answer,
           aiEvaluation: q.evaluation,
@@ -187,6 +187,11 @@ export default function NewInterviewPage() {
       return
     }
 
+    if (!formData.transcript && questions.length === 0) {
+      toast.error("请至少填写面试内容或添加面试题目")
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -207,7 +212,7 @@ export default function NewInterviewPage() {
       })
 
       if (response.ok) {
-        toast.success("面试记录创建成功！")
+        toast.success("面试复盘记录创建成功！")
         router.push("/interviews")
       } else {
         toast.error("创建失败，请重试")
@@ -273,7 +278,7 @@ export default function NewInterviewPage() {
 
   const addQuestion = () => {
     const newQuestion: Question = {
-      id: Date.now().toString(),
+      id: `manual-${Math.random().toString(36).substr(2, 9)}`,
       questionText: "",
       userAnswer: "",
       aiEvaluation: "",
@@ -292,14 +297,16 @@ export default function NewInterviewPage() {
     ))
   }
 
-  const selectedSchedule = schedules.find(s => s.id === formData.scheduleId)
+  const selectedSchedule = formData.scheduleId && formData.scheduleId !== "skip" 
+    ? schedules.find(s => s.id === formData.scheduleId) 
+    : null
 
   if (!session) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">请先登录</h2>
-          <p className="text-gray-600 mb-6">登录后即可添加面试记录</p>
+          <p className="text-gray-600 mb-6">登录后即可创建面试复盘</p>
           <Button asChild>
             <Link href="/auth/signin">立即登录</Link>
           </Button>
@@ -319,7 +326,7 @@ export default function NewInterviewPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">添加面试记录</h1>
+          <h1 className="text-3xl font-bold text-gray-900">新建面试复盘</h1>
           <p className="text-gray-600 mt-1">上传面试录音，AI自动分析并生成复盘记录</p>
         </div>
       </div>
@@ -333,20 +340,25 @@ export default function NewInterviewPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                选择面试安排
+                关联面试安排（可选）
               </CardTitle>
               <CardDescription>
-                选择要记录的面试安排，如果没有可快速创建
+                可以选择关联已有面试安排，或直接创建复盘记录
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="scheduleId">面试安排 *</Label>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <Label htmlFor="scheduleId">面试安排</Label>
                 <Select value={formData.scheduleId} onValueChange={(value) => handleInputChange("scheduleId", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择面试安排" />
+                    <SelectValue placeholder="选择面试安排（可选）" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="skip">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <span>跳过关联，直接创建复盘</span>
+                      </div>
+                    </SelectItem>
                     {schedules.map(schedule => (
                       <SelectItem key={schedule.id} value={schedule.id}>
                         <div className="flex items-center gap-2">
@@ -365,88 +377,98 @@ export default function NewInterviewPage() {
               </div>
               
               {selectedSchedule && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="font-medium text-blue-900">{selectedSchedule.company}</h4>
                   <p className="text-sm text-blue-700">
                     {selectedSchedule.position} · 第{selectedSchedule.round}轮面试
                   </p>
                 </div>
               )}
-
-              {!formData.scheduleId && (
-                <div className="mt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setShowQuickCreate(!showQuickCreate)}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {showQuickCreate ? "取消创建" : "快速创建面试安排"}
-                  </Button>
-                  
-                  {showQuickCreate && (
-                    <div className="mt-4 p-4 border rounded-lg bg-gray-50 space-y-3">
-                      <h4 className="font-medium">快速创建面试安排</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor="company">公司名称 *</Label>
-                          <Input
-                            id="company"
-                            placeholder="如：腾讯"
-                            value={quickCreateData.company}
-                            onChange={(e) => handleQuickCreateChange("company", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="position">职位 *</Label>
-                          <Input
-                            id="position"
-                            placeholder="如：前端开发工程师"
-                            value={quickCreateData.position}
-                            onChange={(e) => handleQuickCreateChange("position", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="department">部门</Label>
-                          <Input
-                            id="department"
-                            placeholder="如：技术部"
-                            value={quickCreateData.department}
-                            onChange={(e) => handleQuickCreateChange("department", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="interviewDate">面试日期 *</Label>
-                          <Input
-                            id="interviewDate"
-                            type="datetime-local"
-                            value={quickCreateData.interviewDate}
-                            onChange={(e) => handleQuickCreateChange("interviewDate", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="round">面试轮次</Label>
-                          <Input
-                            id="round"
-                            type="number"
-                            min="1"
-                            value={quickCreateData.round}
-                            onChange={(e) => handleQuickCreateChange("round", parseInt(e.target.value) || 1)}
-                          />
-                        </div>
-                      </div>
-                      <Button 
-                        type="button" 
-                        onClick={handleQuickCreateSchedule}
-                        className="w-full"
-                      >
-                        创建面试安排
-                      </Button>
-                    </div>
-                  )}
+              
+              {(!formData.scheduleId || formData.scheduleId === "skip") && (
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium text-gray-700">直接创建复盘记录</span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    无需关联面试安排，可以直接上传录音或手动记录进行复盘
+                  </p>
                 </div>
               )}
+
+              <div className="pt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowQuickCreate(!showQuickCreate)}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {showQuickCreate ? "取消创建" : "快速创建面试安排"}
+                </Button>
+                
+                {showQuickCreate && (
+                  <div className="mt-4 p-6 border rounded-lg bg-gray-50 space-y-4">
+                    <h4 className="font-medium text-gray-900">快速创建面试安排</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="company">公司名称 *</Label>
+                        <Input
+                          id="company"
+                          placeholder="如：腾讯"
+                          value={quickCreateData.company}
+                          onChange={(e) => handleQuickCreateChange("company", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="position">职位 *</Label>
+                        <Input
+                          id="position"
+                          placeholder="如：前端开发工程师"
+                          value={quickCreateData.position}
+                          onChange={(e) => handleQuickCreateChange("position", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="department">部门</Label>
+                        <Input
+                          id="department"
+                          placeholder="如：技术部"
+                          value={quickCreateData.department}
+                          onChange={(e) => handleQuickCreateChange("department", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="interviewDate">面试日期 *</Label>
+                        <Input
+                          id="interviewDate"
+                          type="datetime-local"
+                          value={quickCreateData.interviewDate}
+                          onChange={(e) => handleQuickCreateChange("interviewDate", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="round">面试轮次</Label>
+                        <Input
+                          id="round"
+                          type="number"
+                          min="1"
+                          value={quickCreateData.round}
+                          onChange={(e) => handleQuickCreateChange("round", parseInt(e.target.value) || 1)}
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={handleQuickCreateSchedule}
+                      className="w-full"
+                    >
+                      创建面试安排
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -528,7 +550,7 @@ export default function NewInterviewPage() {
                 面试内容记录
               </CardTitle>
               <CardDescription>
-                {formData.transcript ? "AI已自动生成内容，您可手动调整" : "手动记录面试内容或使用AI自动生成"}
+                {formData.transcript ? "AI已自动生成内容，您可手动调整" : "手动记录面试内容或使用AI自动生成（录音转文字）"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -568,7 +590,7 @@ export default function NewInterviewPage() {
                 </Button>
               </CardTitle>
               <CardDescription>
-                {questions.length > 0 ? "AI自动提取的面试题目，您可手动调整" : "记录面试中遇到的问题和您的回答"}
+                {questions.length > 0 ? "AI自动提取的面试题目，您可手动调整" : "记录面试中遇到的问题和您的回答（AI分析后会自动生成）"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -722,7 +744,7 @@ export default function NewInterviewPage() {
           {/* Submit Button */}
           <div className="flex gap-4">
             <Button onClick={handleSubmit} disabled={isLoading} className="flex-1">
-              {isLoading ? "保存中..." : "保存记录"}
+              {isLoading ? "保存中..." : "创建复盘记录"}
             </Button>
             <Button variant="outline" asChild>
               <Link href="/interviews">取消</Link>

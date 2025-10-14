@@ -42,6 +42,7 @@ interface Project {
   id: string
   name: string
   role: string
+  company?: string
   description: string
   timeRange?: string
   techStack?: string

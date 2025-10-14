@@ -13,6 +13,7 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
+  password  String?  // 密码字段，可选（支持OAuth登录）
   name      String?
   image     String?
   phone     String?
@@ -192,6 +193,9 @@ model Project {
   userId      String
   name        String
   role        String   // 扮演角色：前端、产品、测试、算法、运维等
+  company     String?  // 所属公司
+  department  String?  // 所属部门
+  workType    String?  // 工作类型：实习、正式、外包、兼职等
   description String   // 项目简介
   timeRange   String?  // 所属时间段
   techStack   String?  // 关键技术栈，逗号分隔

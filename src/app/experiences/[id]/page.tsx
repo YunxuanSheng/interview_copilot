@@ -199,7 +199,7 @@ export default function ExperienceDetailPage() {
           <div className="flex gap-4 justify-center">
             <Button onClick={() => fetchExperience()}>重试</Button>
             <Button asChild variant="outline">
-              <Link href="/experiences">返回面经库</Link>
+              <Link href="/experiences">返回我的面经</Link>
             </Button>
           </div>
         </div>
@@ -217,7 +217,7 @@ export default function ExperienceDetailPage() {
         <Button asChild variant="outline" size="sm">
           <Link href="/experiences">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            返回面经库
+            返回我的面经
           </Link>
         </Button>
       </div>

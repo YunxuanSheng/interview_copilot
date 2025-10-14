@@ -388,7 +388,7 @@ export default function InterviewDetailPage() {
             <Button asChild variant="outline" size="sm">
               <Link href="/experiences/new">
                 <Plus className="w-4 h-4 mr-2" />
-                一键导入面经库
+                一键导入我的面经
               </Link>
             </Button>
           </div>
@@ -401,7 +401,7 @@ export default function InterviewDetailPage() {
                 <Button asChild variant="outline">
                   <Link href="/experiences/new">
                     <Plus className="w-4 h-4 mr-2" />
-                    添加题目到面经库
+                    添加题目到我的面经
                   </Link>
                 </Button>
               </CardContent>
@@ -421,7 +421,7 @@ export default function InterviewDetailPage() {
                         <Button asChild variant="outline" size="sm">
                           <Link href={`/experiences/new?question=${encodeURIComponent(question.questionText)}&answer=${encodeURIComponent(question.userAnswer || '')}&type=${question.questionType || 'technical'}`}>
                             <Plus className="w-3 h-3 mr-1" />
-                            导入面经库
+                            导入我的面经
                           </Link>
                         </Button>
                       </div>

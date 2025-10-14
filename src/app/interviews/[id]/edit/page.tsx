@@ -88,7 +88,7 @@ export default function EditInterviewPage({ params }: { params: { id: string } }
 
   const addQuestion = () => {
     const newQuestion: InterviewQuestion = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${Math.random().toString(36).substr(2, 9)}`,
       questionText: "",
       userAnswer: "",
       aiEvaluation: "",

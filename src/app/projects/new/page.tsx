@@ -25,6 +25,15 @@ const ROLES = [
   "项目经理"
 ]
 
+const WORK_TYPES = [
+  "实习",
+  "正式",
+  "外包",
+  "兼职",
+  "自由职业",
+  "创业"
+]
+
 export default function NewProjectPage() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -32,6 +41,9 @@ export default function NewProjectPage() {
   const [formData, setFormData] = useState({
     name: "",
     role: "",
+    company: "",
+    department: "",
+    workType: "",
     description: "",
     timeRange: "",
     techStack: ""
@@ -180,6 +192,45 @@ export default function NewProjectPage() {
                   {ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 所属公司 */}
+            <div className="space-y-2">
+              <Label htmlFor="company">所属公司</Label>
+              <Input
+                id="company"
+                placeholder="例如：阿里巴巴、腾讯、字节跳动"
+                value={formData.company}
+                onChange={(e) => handleInputChange("company", e.target.value)}
+              />
+            </div>
+
+            {/* 所属部门 */}
+            <div className="space-y-2">
+              <Label htmlFor="department">所属部门</Label>
+              <Input
+                id="department"
+                placeholder="例如：淘宝技术部、微信事业群"
+                value={formData.department}
+                onChange={(e) => handleInputChange("department", e.target.value)}
+              />
+            </div>
+
+            {/* 工作类型 */}
+            <div className="space-y-2">
+              <Label htmlFor="workType">工作类型</Label>
+              <Select value={formData.workType} onValueChange={(value) => handleInputChange("workType", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择工作类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORK_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>

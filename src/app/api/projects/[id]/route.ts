@@ -25,6 +25,7 @@ export async function GET(
           userId: session.user.id,
           name: "电商平台重构项目",
           role: "前端开发",
+          company: "阿里巴巴",
           description: "负责公司核心电商平台的前端重构，从jQuery迁移到React，提升用户体验和开发效率。项目涉及商品展示、购物车、订单管理等核心模块，用户量达到100万+。",
           timeRange: "2023.03 - 2023.08",
           techStack: "React, TypeScript, Redux, Ant Design, Webpack",
@@ -112,6 +113,7 @@ export async function GET(
           userId: session.user.id,
           name: "微服务架构升级",
           role: "后端开发",
+          company: "腾讯",
           description: "主导公司核心业务系统的微服务架构升级，将单体应用拆分为多个微服务，提升系统可扩展性和维护性。涉及用户服务、订单服务、支付服务等8个核心服务。",
           timeRange: "2022.09 - 2023.02",
           techStack: "Spring Boot, Spring Cloud, Docker, Kubernetes, Redis, MySQL",
@@ -253,7 +255,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, role, description, timeRange, techStack, status } = body
+    const { name, role, company, description, timeRange, techStack, status } = body
     const resolvedParams = await params
 
     // 检查项目是否存在且属于当前用户
@@ -275,6 +277,7 @@ export async function PUT(
       data: {
         name: name || existingProject.name,
         role: role || existingProject.role,
+        company: company !== undefined ? company : existingProject.company,
         description: description || existingProject.description,
         timeRange: timeRange !== undefined ? timeRange : existingProject.timeRange,
         techStack: techStack !== undefined ? techStack : existingProject.techStack,

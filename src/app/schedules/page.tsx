@@ -176,13 +176,21 @@ export default function SchedulesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "scheduled":
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">已安排</Badge>
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">待开始</Badge>
       case "completed":
         return <Badge variant="secondary" className="bg-green-100 text-green-800">已完成</Badge>
       case "cancelled":
         return <Badge variant="destructive" className="bg-red-100 text-red-800">已取消</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getReviewStatusBadge = (scheduleId: string) => {
+    if (hasReviewed(scheduleId)) {
+      return <Badge variant="secondary" className="bg-purple-100 text-purple-800">已复盘</Badge>
+    } else {
+      return <Badge variant="outline" className="bg-gray-100 text-gray-600">未复盘</Badge>
     }
   }
 
@@ -381,7 +389,7 @@ export default function SchedulesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 relative">
-              <div className="h-[600px]">
+              <div className="h-[500px]">
                 <BigCalendar
                   localizer={localizer}
                   events={calendarEvents}
@@ -532,7 +540,7 @@ export default function SchedulesPage() {
         </div>
 
         {/* 右侧：最近三天面试（窄） */}
-        <div className="w-full lg:w-80">
+        <div className="w-full lg:w-96">
           <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -543,7 +551,7 @@ export default function SchedulesPage() {
                 即将到来的面试
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 flex-1 overflow-y-auto">
+            <CardContent className="space-y-3 flex-1 overflow-y-auto max-h-[600px]">
               {Object.keys(groupedRecentSchedules).length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
@@ -707,7 +715,8 @@ export default function SchedulesPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">职位</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">面试时间</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">轮次</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">状态</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">面试状态</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">复盘状态</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">操作</th>
                   </tr>
                 </thead>
@@ -736,6 +745,9 @@ export default function SchedulesPage() {
                       </td>
                       <td className="py-3 px-4">
                         {getStatusBadge(schedule.status)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {getReviewStatusBadge(schedule.id)}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
