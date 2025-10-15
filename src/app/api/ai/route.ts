@@ -270,8 +270,8 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
     const maxTokens = isLongConversation ? 4000 : 2000
     
     const systemPrompt = isLongConversation 
-      ? `你是一个资深的面试官和技术专家，拥有10年以上的面试经验。这是面试对话的第${chunkIndex}部分（共${totalChunks}部分），请对这部分对话进行专业、深入的分析，重点关注候选人的技术概念理解、表达能力、学习潜力等方面，并以JSON格式返回：`
-      : `你是一个资深的面试官和技术专家，拥有10年以上的面试经验。请对面试对话进行专业、深入的分析，重点关注候选人的技术概念理解、表达能力、学习潜力等方面，并以JSON格式返回：`
+      ? `你是面试分析专家。这是面试对话的第${chunkIndex}部分（共${totalChunks}部分），请分析这部分对话。`
+      : `你是面试分析专家。请分析以下面试对话。`
       
     const completion = await openai.chat.completions.create({
     model: model,
@@ -280,89 +280,80 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
         role: "system",
         content: `${systemPrompt}
 
-          {
-            "strengths": [
-              {
-                "category": "技术能力/沟通表达/学习能力/经验背景",
-                "description": "具体的技术优势描述，要详细说明候选人在哪些方面表现突出",
-                "evidence": "支撑该优势的具体表现，包括具体的回答内容、技术细节、表达方式等"
-              }
-            ],
-            "weaknesses": [
-              {
-                "category": "技术深度/概念理解/实践经验/表达能力",
-                "description": "具体的技术不足描述，要详细分析候选人在哪些概念或技能上存在不足", 
-                "impact": "对面试结果的影响程度，说明这些不足如何影响整体表现",
-                "improvement": "具体的改进建议，提供可操作的学习路径和练习方向"
-              }
-            ],
-            "suggestions": [
-              {
-                "priority": "high/medium/low",
-                "category": "技术/沟通/经验/学习",
-                "suggestion": "具体的改进建议，要针对候选人的具体表现给出个性化建议",
-                "actionable": "可执行的具体步骤，包括学习资源、练习方法、实践建议等"
-              }
-            ],
-            "questionAnalysis": [
-              {
-                "question": "问题内容",
-                "answer": "候选人的回答内容",
-                "questionType": "algorithm/system_design/behavioral/technical",
-                "difficulty": "easy/medium/hard",
-                "evaluation": {
-                  "technicalAccuracy": "技术准确性评价，分析候选人对技术概念的理解是否正确",
-                  "completeness": "回答完整性评价，评估是否覆盖了问题的核心要点", 
-                  "clarity": "表达清晰度评价，分析逻辑是否清晰、表达是否准确",
-                  "depth": "技术深度评价，评估对技术原理的理解深度",
-                  "specificFeedback": "具体的优缺点分析，详细说明回答中的亮点和不足",
-                  "missingPoints": "遗漏的关键点，指出候选人没有涉及的重要概念或方法",
-                  "strengths": "回答中的亮点，具体说明哪些方面表现良好",
-                  "improvements": "具体的改进建议，针对这个问题的回答给出优化方向"
-                },
-                "recommendedAnswer": {
-                  "structure": "推荐回答的结构框架，提供清晰的回答逻辑",
-                  "keyPoints": ["关键点1", "关键点2"],
-                  "technicalDetails": "技术细节说明，深入解释相关概念和原理",
-                  "examples": "具体示例，提供实际应用场景和代码示例",
-                  "bestPractices": "最佳实践建议，分享行业标准和最佳实践",
-                  "codeImplementation": "如果是算法题或代码题，提供完整的代码实现",
-                  "correctAnswer": "如果是概念题，提供标准正确答案和详细解释",
-                  "explanation": "详细的解题思路和知识点解释，帮助理解背后的原理"
-                }
-              }
-            ]
-          }
+请严格按照以下JSON格式返回分析结果：
 
-          重要说明：
-          1. 必须仔细分析整个面试对话，识别出所有的问题和回答
-          2. questionAnalysis数组应该包含面试中出现的每一个问题，不要遗漏
-          3. 每个问题都要有对应的候选人回答内容
-          4. 问题类型包括：algorithm(算法题)、system_design(系统设计)、behavioral(行为面试)、technical(技术问题)
-          5. 难度分为：easy(简单)、medium(中等)、hard(困难)
+{
+  "overallScore": 75,
+  "strengths": [
+    {
+      "category": "技术能力",
+      "description": "具体的技术优势描述",
+      "evidence": "支撑该优势的具体表现"
+    }
+  ],
+  "weaknesses": [
+    {
+      "category": "技术深度",
+      "description": "具体的技术不足描述",
+      "impact": "对面试结果的影响程度",
+      "improvement": "具体的改进建议"
+    }
+  ],
+  "suggestions": [
+    {
+      "priority": "high",
+      "category": "技术",
+      "suggestion": "具体的改进建议",
+      "actionable": "可执行的具体步骤"
+    }
+  ],
+  "comprehensiveFeedback": {
+    "technicalAssessment": "对候选人技术能力的综合评估",
+    "communicationSkills": "对候选人沟通表达能力的评价",
+    "learningPotential": "对候选人学习能力和成长潜力的评估",
+    "experienceEvaluation": "对候选人项目经验和实践能力的评价",
+    "overallImpression": "对候选人整体表现的印象和评价",
+    "keyHighlights": "面试中的关键亮点和突出表现",
+    "mainConcerns": "主要关注点和需要改进的地方",
+    "recommendation": "是否推荐该候选人的建议和理由"
+  },
+  "questionAnalysis": [
+    {
+      "question": "问题内容",
+      "answer": "候选人的回答内容",
+      "questionType": "algorithm",
+      "difficulty": "medium",
+      "evaluation": {
+        "technicalAccuracy": "技术准确性评价",
+        "completeness": "回答完整性评价",
+        "clarity": "表达清晰度评价",
+        "depth": "技术深度评价",
+        "specificFeedback": "具体的优缺点分析",
+        "missingPoints": "遗漏的关键点",
+        "strengths": "回答中的亮点",
+        "improvements": "具体的改进建议"
+      },
+      "recommendedAnswer": {
+        "structure": "推荐回答的结构框架",
+        "keyPoints": ["关键点1", "关键点2"],
+        "technicalDetails": "技术细节说明",
+        "examples": "具体示例",
+        "bestPractices": "最佳实践建议",
+        "codeImplementation": "如果是算法题，提供完整的代码实现",
+        "correctAnswer": "如果是概念题，提供标准正确答案",
+        "explanation": "详细的解题思路和知识点解释"
+      }
+    }
+  ]
+}
 
-          推荐答案生成规则：
-          1. 算法题(algorithm)：必须提供完整的代码实现，包括时间复杂度和空间复杂度分析
-          2. 技术问题(technical)：提供标准正确答案和详细解释，包含关键概念、原理、应用场景
-          3. 系统设计题(system_design)：提供系统架构图描述、关键组件、数据流、扩展性考虑
-          4. 行为面试题(behavioral)：提供STAR方法的结构化回答模板和具体示例
-
-          评价原则：
-          1. 技术准确性：技术概念是否正确，实现方案是否可行，对核心概念的理解深度
-          2. 回答完整性：是否覆盖了问题的核心要点，是否遗漏了重要的技术细节
-          3. 表达清晰度：逻辑是否清晰，表达是否准确，能否有效传达技术观点
-          4. 技术深度：是否展现了深入的技术理解，能否从原理层面解释问题
-          5. 学习潜力：是否展现出持续学习的能力和意愿
-          6. 实践经验：是否能够结合实际项目经验来回答问题
-
-          分析要求：
-          1. 重点关注候选人对技术概念的理解深度，不仅仅是表面的知识点
-          2. 分析候选人的思维过程，看是否具备系统性思考能力
-          3. 评估候选人的学习能力和成长潜力
-          4. 提供具体、可操作的建议，帮助候选人提升技能
-          5. 避免简单的对错判断，而是提供建设性的反馈
-
-          请基于实际面试内容，提供专业、具体、可操作的评价和建议。避免使用评分，而是用建设性的语言描述表现。`
+分析要求：
+1. 仔细分析整个面试对话，识别出所有的问题和回答
+2. questionAnalysis数组应该包含面试中出现的每一个问题
+3. 问题类型：algorithm(算法题)、system_design(系统设计)、behavioral(行为面试)、technical(技术问题)
+4. 难度：easy(简单)、medium(中等)、hard(困难)
+5. 提供具体、可操作的建议，避免简单的对错判断
+6. 重点关注候选人的整体表现和潜力`
         },
         {
           role: "user",
@@ -381,30 +372,46 @@ ${transcript}
         }
       ],
       temperature: 0.3,
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" }
     })
 
-    // 处理OpenAI返回的内容，可能包含markdown代码块
-    let content = completion.choices[0].message.content || '{}'
+    // 使用JSON mode后，OpenAI直接返回纯JSON，无需处理markdown
+    const content = completion.choices[0].message.content || '{}'
     
-    // 如果内容包含markdown代码块，提取JSON部分
-    if (content.includes('```json')) {
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/)
-      if (jsonMatch) {
-        content = jsonMatch[1]
-      }
-    } else if (content.includes('```')) {
-      const jsonMatch = content.match(/```\s*([\s\S]*?)\s*```/)
-      if (jsonMatch) {
-        content = jsonMatch[1]
+    console.log('=== OpenAI返回的JSON内容 ===')
+    console.log('内容长度:', content.length)
+    console.log('内容预览:', content.substring(0, 300) + '...')
+    
+    let result
+    try {
+      result = JSON.parse(content)
+      console.log('=== JSON解析成功 ===')
+      console.log('解析后的结果:', JSON.stringify(result, null, 2))
+    } catch (parseError) {
+      console.error('=== JSON解析失败 ===')
+      console.error('解析错误:', parseError)
+      console.error('无法解析的内容:', content)
+      
+      // 返回空结果
+      return {
+        overallScore: 0,
+        strengths: [],
+        weaknesses: [],
+        suggestions: [],
+        comprehensiveFeedback: {
+          technicalAssessment: "",
+          communicationSkills: "",
+          learningPotential: "",
+          experienceEvaluation: "",
+          overallImpression: "",
+          keyHighlights: "",
+          mainConcerns: "",
+          recommendation: ""
+        },
+        questionAnalysis: []
       }
     }
-    
-    console.log('OpenAI返回的原始内容:', content.substring(0, 500) + '...')
-    
-    const result = JSON.parse(content)
-    
-    console.log('解析后的结果:', JSON.stringify(result, null, 2))
     
     // 使用专业评价标准处理结果
     if (result.questionAnalysis && Array.isArray(result.questionAnalysis)) {
