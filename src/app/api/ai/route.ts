@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { evaluationStandards, generateProfessionalFeedback } from '@/lib/evaluation-standards'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { checkAndRecordAiUsage } from '@/lib/ai-usage'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -8,12 +11,30 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id
+
     const contentType = request.headers.get('content-type')
     
     // 检查是否是文件上传（multipart/form-data）
     if (contentType && contentType.includes('multipart/form-data')) {
+      // 检查credits
+      if (userId) {
+        const creditsCheck = await checkAndRecordAiUsage(userId, 'audio_transcription')
+        if (!creditsCheck.canUse) {
+          return NextResponse.json({
+            success: false,
+            error: 'Credits不足',
+            message: creditsCheck.reason || 'Credits不足',
+            creditsInfo: creditsCheck.creditsInfo
+          }, { status: 402 })
+        }
+      }
+
       const formData = await request.formData()
-      return await transcribeAudio(formData)
+      const result = await transcribeAudio(formData)
+      
+      return result
     }
     
     // 处理JSON请求
@@ -21,11 +42,53 @@ export async function POST(request: NextRequest) {
 
     // 兼容不同的请求格式
     if (action === 'analyze_interview' || type === 'analyze') {
-      return await analyzeInterview(data)
+      // 检查credits
+      if (userId) {
+        const creditsCheck = await checkAndRecordAiUsage(userId, 'interview_analysis')
+        if (!creditsCheck.canUse) {
+          return NextResponse.json({
+            success: false,
+            error: 'Credits不足',
+            message: creditsCheck.reason || 'Credits不足',
+            creditsInfo: creditsCheck.creditsInfo
+          }, { status: 402 })
+        }
+      }
+
+      const result = await analyzeInterview(data)
+      return result
     } else if (action === 'transcribe_audio' || type === 'transcribe') {
-      return await transcribeAudio(data)
+      // 检查credits
+      if (userId) {
+        const creditsCheck = await checkAndRecordAiUsage(userId, 'audio_transcription')
+        if (!creditsCheck.canUse) {
+          return NextResponse.json({
+            success: false,
+            error: 'Credits不足',
+            message: creditsCheck.reason || 'Credits不足',
+            creditsInfo: creditsCheck.creditsInfo
+          }, { status: 402 })
+        }
+      }
+
+      const result = await transcribeAudio(data)
+      return result
     } else if (action === 'generate_suggestion' || type === 'suggestion') {
-      return await generateInterviewSuggestion(data.question, data.currentAnswer)
+      // 检查credits
+      if (userId) {
+        const creditsCheck = await checkAndRecordAiUsage(userId, 'suggestion_generation')
+        if (!creditsCheck.canUse) {
+          return NextResponse.json({
+            success: false,
+            error: 'Credits不足',
+            message: creditsCheck.reason || 'Credits不足',
+            creditsInfo: creditsCheck.creditsInfo
+          }, { status: 402 })
+        }
+      }
+
+      const result = await generateInterviewSuggestion(data.question, data.currentAnswer)
+      return result
     } else {
       return NextResponse.json({
         success: false,

@@ -21,6 +21,24 @@ interface DashboardStats {
   totalProjects: number
 }
 
+interface AiUsageStats {
+  interview_analysis: number
+  audio_transcription: number
+  suggestion_generation: number
+  job_parsing: number
+  total: number
+}
+
+interface CreditsStatus {
+  creditsBalance: number
+  dailyUsed: number
+  monthlyUsed: number
+  dailyRemaining: number
+  monthlyRemaining: number
+  dailyLimit: number
+  monthlyLimit: number
+}
+
 interface UpcomingInterview {
   id: string
   company: string
@@ -52,6 +70,22 @@ export default function Dashboard() {
     upcomingInterviews: 0,
     totalProjects: 0
   })
+  const [aiUsageStats, setAiUsageStats] = useState<AiUsageStats>({
+    interview_analysis: 0,
+    audio_transcription: 0,
+    suggestion_generation: 0,
+    job_parsing: 0,
+    total: 0
+  })
+  const [creditsStatus, setCreditsStatus] = useState<CreditsStatus>({
+    creditsBalance: 0,
+    dailyUsed: 0,
+    monthlyUsed: 0,
+    dailyRemaining: 0,
+    monthlyRemaining: 0,
+    dailyLimit: 200,
+    monthlyLimit: 2000
+  })
   const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([])
   const [recentExperiences, setRecentExperiences] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -71,6 +105,8 @@ export default function Dashboard() {
     if (session) {
       fetchDashboardData()
       fetchSchedules()
+      fetchAiUsageStats()
+      fetchCreditsStatus()
     }
   }, [session])
 
@@ -116,6 +152,34 @@ export default function Dashboard() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchAiUsageStats = async () => {
+    try {
+      const response = await fetch("/api/ai-usage")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAiUsageStats(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI usage stats:", error)
+    }
+  }
+
+  const fetchCreditsStatus = async () => {
+    try {
+      const response = await fetch("/api/credits")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setCreditsStatus(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch credits status:", error)
     }
   }
 
@@ -839,6 +903,111 @@ export default function Dashboard() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Credits状态 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Credits余额与限制
+          </CardTitle>
+          <CardDescription>
+            您的AI服务使用额度管理
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-blue-900">Credits余额</span>
+              </div>
+              <div className="text-2xl font-bold text-blue-600">{creditsStatus.creditsBalance}</div>
+              <div className="text-sm text-blue-700">可用额度</div>
+            </div>
+            
+            <div className="p-4 bg-green-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-green-900">今日剩余</span>
+              </div>
+              <div className="text-2xl font-bold text-green-600">{creditsStatus.dailyRemaining}</div>
+              <div className="text-sm text-green-700">/ {creditsStatus.dailyLimit} 每日限制</div>
+            </div>
+            
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarDays className="w-5 h-5 text-purple-600" />
+                <span className="font-medium text-purple-900">本月剩余</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-600">{creditsStatus.monthlyRemaining}</div>
+              <div className="text-sm text-purple-700">/ {creditsStatus.monthlyLimit} 每月限制</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI使用统计 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            AI服务使用统计
+          </CardTitle>
+          <CardDescription>
+            您使用各项AI服务的次数统计
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-blue-900">面试分析</span>
+              </div>
+              <div className="text-2xl font-bold text-blue-600">{aiUsageStats.interview_analysis}</div>
+              <div className="text-sm text-blue-700">次使用</div>
+            </div>
+            
+            <div className="p-4 bg-green-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Mic className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-green-900">音频转录</span>
+              </div>
+              <div className="text-2xl font-bold text-green-600">{aiUsageStats.audio_transcription}</div>
+              <div className="text-sm text-green-700">次使用</div>
+            </div>
+            
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                <span className="font-medium text-purple-900">建议生成</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-600">{aiUsageStats.suggestion_generation}</div>
+              <div className="text-sm text-purple-700">次使用</div>
+            </div>
+            
+            <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="w-5 h-5 text-orange-600" />
+                <span className="font-medium text-orange-900">岗位解析</span>
+              </div>
+              <div className="text-2xl font-bold text-orange-600">{aiUsageStats.job_parsing}</div>
+              <div className="text-sm text-orange-700">次使用</div>
+            </div>
+          </div>
+          
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-gray-600" />
+                <span className="font-medium text-gray-900">总使用次数</span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">{aiUsageStats.total}</div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

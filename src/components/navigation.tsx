@@ -24,7 +24,7 @@ import {
   X,
   FolderOpen
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const navigation = [
   { name: "首页", href: "/", icon: Home },
@@ -34,11 +34,49 @@ const navigation = [
   { name: "项目整理", href: "/projects", icon: FolderOpen },
 ]
 
+interface CreditsStatus {
+  creditsBalance: number
+  dailyUsed: number
+  monthlyUsed: number
+  dailyRemaining: number
+  monthlyRemaining: number
+  dailyLimit: number
+  monthlyLimit: number
+}
+
 export default function Navigation() {
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [creditsStatus, setCreditsStatus] = useState<CreditsStatus | null>(null)
+  const [creditsLoading, setCreditsLoading] = useState(false)
+
+  // 获取credits状态
+  const fetchCreditsStatus = async () => {
+    if (!session?.user || !('id' in session.user)) return
+    
+    setCreditsLoading(true)
+    try {
+      const response = await fetch('/api/credits')
+      const data = await response.json()
+      
+      if (data.success) {
+        setCreditsStatus(data.data)
+      }
+    } catch (error) {
+      console.error('获取credits状态失败:', error)
+    } finally {
+      setCreditsLoading(false)
+    }
+  }
+
+  // 当用户登录时获取credits状态
+  useEffect(() => {
+    if (session?.user && 'id' in session.user) {
+      fetchCreditsStatus()
+    }
+  }, [session?.user])
 
   // 调试信息
   console.log("Navigation - Session status:", status)
@@ -96,15 +134,38 @@ export default function Navigation() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {session.user?.name || "用户"}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {session.user?.email}
-                    </p>
+              <DropdownMenuContent className="w-72" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal p-4">
+                  <div className="flex flex-col space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {session.user?.name || "用户"}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {session.user?.email}
+                      </p>
+                    </div>
+                    
+                    {/* Credits显示 - 简化样式 */}
+                    <div className="bg-gray-50 rounded-md p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-600">Credits</span>
+                        {creditsLoading ? (
+                          <div className="w-12 h-4 bg-gray-200 rounded animate-pulse"></div>
+                        ) : creditsStatus ? (
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {creditsStatus.creditsBalance.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              今日: {creditsStatus.dailyUsed}/{creditsStatus.dailyLimit}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400">加载中...</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

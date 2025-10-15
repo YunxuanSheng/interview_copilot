@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_POSTGRES_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -28,6 +27,8 @@ model User {
   sessions            Session[]
   skills              Skill[]
   workExperiences     WorkExperience[]
+  aiUsageStats        AiUsageStat[]
+  userCredits         UserCredits?
 
   @@map("users")
 }
@@ -251,4 +252,33 @@ model JobApplication {
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("job_applications")
+}
+
+model AiUsageStat {
+  id          String   @id @default(cuid())
+  userId      String
+  serviceType String   // 'interview_analysis', 'audio_transcription', 'suggestion_generation', 'job_parsing'
+  count       Int      @default(0)
+  lastUsed    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceType])
+  @@map("ai_usage_stats")
+}
+
+model UserCredits {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  creditsBalance  Int      @default(100) // 新用户给100 credits试用
+  dailyUsed       Int      @default(0)   // 今日已使用
+  monthlyUsed     Int      @default(0)   // 本月已使用
+  lastDailyReset  DateTime @default(now()) // 上次每日重置时间
+  lastMonthlyReset DateTime @default(now()) // 上次每月重置时间
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credits")
 }

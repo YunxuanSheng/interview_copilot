@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Link from "next/link"
 
 export default function SignIn() {
   const [email, setEmail] = useState("")
@@ -15,6 +16,8 @@ export default function SignIn() {
   const [name, setName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
+  const [agreeToPrivacy, setAgreeToPrivacy] = useState(false)
   const router = useRouter()
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
@@ -45,6 +48,13 @@ export default function SignIn() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // 注册时需要同意条款
+    if (!agreeToTerms || !agreeToPrivacy) {
+      alert("请先同意用户服务协议和隐私政策")
+      return
+    }
+    
     setIsLoading(true)
     
     try {
@@ -182,6 +192,45 @@ export default function SignIn() {
                     required
                   />
                 </div>
+                {/* 注册时的法律条款同意 */}
+                {isRegister && (
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-2">
+                      <input
+                        type="checkbox"
+                        id="agree-terms"
+                        checked={agreeToTerms}
+                        onChange={(e) => setAgreeToTerms(e.target.checked)}
+                        className="mt-1"
+                        required
+                      />
+                      <label htmlFor="agree-terms" className="text-xs text-gray-600 leading-relaxed">
+                        我已阅读并同意
+                        <Link href="/terms" target="_blank" className="text-blue-600 hover:text-blue-800 underline mx-1">
+                          《用户服务协议》
+                        </Link>
+                      </label>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <input
+                        type="checkbox"
+                        id="agree-privacy"
+                        checked={agreeToPrivacy}
+                        onChange={(e) => setAgreeToPrivacy(e.target.checked)}
+                        className="mt-1"
+                        required
+                      />
+                      <label htmlFor="agree-privacy" className="text-xs text-gray-600 leading-relaxed">
+                        我已阅读并同意
+                        <Link href="/privacy" target="_blank" className="text-blue-600 hover:text-blue-800 underline mx-1">
+                          《隐私政策》
+                        </Link>
+                        ，了解个人信息收集和使用方式
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (isRegister ? "注册中..." : "登录中...") : (isRegister ? "注册" : "登录")}
                 </Button>

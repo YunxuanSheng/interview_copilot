@@ -82,6 +82,24 @@ interface Skill {
   category: string
 }
 
+interface AiUsageStats {
+  interview_analysis: number
+  audio_transcription: number
+  suggestion_generation: number
+  job_parsing: number
+  total: number
+}
+
+interface CreditsStatus {
+  creditsBalance: number
+  dailyUsed: number
+  monthlyUsed: number
+  dailyRemaining: number
+  monthlyRemaining: number
+  dailyLimit: number
+  monthlyLimit: number
+}
+
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -99,10 +117,28 @@ export default function ProfilePage() {
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [aiUsageStats, setAiUsageStats] = useState<AiUsageStats>({
+    interview_analysis: 0,
+    audio_transcription: 0,
+    suggestion_generation: 0,
+    job_parsing: 0,
+    total: 0
+  })
+  const [creditsStatus, setCreditsStatus] = useState<CreditsStatus>({
+    creditsBalance: 0,
+    dailyUsed: 0,
+    monthlyUsed: 0,
+    dailyRemaining: 0,
+    monthlyRemaining: 0,
+    dailyLimit: 200,
+    monthlyLimit: 2000
+  })
 
   useEffect(() => {
     if (session) {
       fetchProfile()
+      fetchAiUsageStats()
+      fetchCreditsStatus()
     }
   }, [session])
 
@@ -128,6 +164,87 @@ export default function ProfilePage() {
       console.error("Failed to fetch profile:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchAiUsageStats = async () => {
+    try {
+      const response = await fetch("/api/ai-usage")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAiUsageStats(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI usage stats:", error)
+    }
+  }
+
+  const fetchCreditsStatus = async () => {
+    try {
+      const response = await fetch("/api/credits")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setCreditsStatus(data.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch credits status:", error)
+    }
+  }
+
+  const handleAddCredits = async () => {
+    try {
+      const response = await fetch("/api/credits/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: 100 }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          toast.success("成功补充100 credits！")
+          fetchCreditsStatus() // 刷新credits状态
+        } else {
+          toast.error(data.message || "补充credits失败")
+        }
+      } else {
+        toast.error("补充credits失败")
+      }
+    } catch (error) {
+      console.error("补充credits失败:", error)
+      toast.error("补充credits失败")
+    }
+  }
+
+  const handleResetTestCredits = async () => {
+    try {
+      const response = await fetch("/api/credits/reset-test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          toast.success("测试credits已重置为2000！")
+          fetchCreditsStatus() // 刷新credits状态
+        } else {
+          toast.error(data.message || "重置credits失败")
+        }
+      } else {
+        toast.error("重置credits失败")
+      }
+    } catch (error) {
+      console.error("重置credits失败:", error)
+      toast.error("重置credits失败")
     }
   }
 
@@ -510,6 +627,153 @@ export default function ProfilePage() {
                       : "未知"
                     }
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Credits状态 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                Credits余额与限制
+              </CardTitle>
+              <CardDescription>
+                您的AI服务使用额度管理
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-900">Credits余额</span>
+                  </div>
+                  <div className="text-2xl font-bold text-blue-600">{creditsStatus.creditsBalance}</div>
+                  <div className="text-sm text-blue-700">可用额度</div>
+                </div>
+                
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-green-600" />
+                    <span className="font-medium text-green-900">今日剩余</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">{creditsStatus.dailyRemaining}</div>
+                  <div className="text-sm text-green-700">/ {creditsStatus.dailyLimit} 每日限制</div>
+                </div>
+                
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium text-purple-900">本月剩余</span>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600">{creditsStatus.monthlyRemaining}</div>
+                  <div className="text-sm text-purple-700">/ {creditsStatus.monthlyLimit} 每月限制</div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium text-gray-900">服务消耗说明</h4>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleResetTestCredits}
+                      size="sm"
+                      variant="default"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      重置测试2000 Credits
+                    </Button>
+                    <Button 
+                      onClick={handleAddCredits}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      补充100 Credits
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">面试分析:</span>
+                    <span className="font-medium">10 credits</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">音频转录:</span>
+                    <span className="font-medium">5 credits</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">建议生成:</span>
+                    <span className="font-medium">3 credits</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">岗位解析:</span>
+                    <span className="font-medium">2 credits</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI使用统计 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI服务使用统计
+              </CardTitle>
+              <CardDescription>
+                您使用各项AI服务的次数统计
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-900">面试分析</span>
+                  </div>
+                  <div className="text-2xl font-bold text-blue-600">{aiUsageStats.interview_analysis}</div>
+                  <div className="text-sm text-blue-700">次使用</div>
+                </div>
+                
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-green-600" />
+                    <span className="font-medium text-green-900">音频转录</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">{aiUsageStats.audio_transcription}</div>
+                  <div className="text-sm text-green-700">次使用</div>
+                </div>
+                
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium text-purple-900">建议生成</span>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600">{aiUsageStats.suggestion_generation}</div>
+                  <div className="text-sm text-purple-700">次使用</div>
+                </div>
+                
+                <div className="p-4 bg-orange-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Briefcase className="w-5 h-5 text-orange-600" />
+                    <span className="font-medium text-orange-900">岗位解析</span>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-600">{aiUsageStats.job_parsing}</div>
+                  <div className="text-sm text-orange-700">次使用</div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-gray-600" />
+                    <span className="font-medium text-gray-900">总使用次数</span>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">{aiUsageStats.total}</div>
                 </div>
               </div>
             </CardContent>

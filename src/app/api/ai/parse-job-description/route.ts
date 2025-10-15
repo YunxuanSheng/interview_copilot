@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { openai } from '@/lib/openai';
+import { checkAndRecordAiUsage } from '@/lib/ai-usage';
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
+    }
+
+    // 检查credits
+    const creditsCheck = await checkAndRecordAiUsage(session.user.id, 'job_parsing');
+    if (!creditsCheck.canUse) {
+      return NextResponse.json({
+        success: false,
+        error: 'Credits不足',
+        message: creditsCheck.reason || 'Credits不足',
+        creditsInfo: creditsCheck.creditsInfo
+      }, { status: 402 });
     }
 
     const { url } = await request.json();
