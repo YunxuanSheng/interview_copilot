@@ -53,6 +53,12 @@ export default function InterviewSharingsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [likedSharing, setLikedSharing] = useState<Set<string>>(new Set())
 
+  // 格式化日期的辅助函数，确保服务器端和客户端一致性
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+
   const fetchSharings = useCallback(async (page = 1) => {
     setLoading(true)
     try {
@@ -274,7 +280,7 @@ export default function InterviewSharingsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(sharing.interviewDate).toLocaleDateString()}
+                      {formatDate(sharing.interviewDate)}
                       <span className="mx-2">•</span>
                       第{sharing.round}轮
                     </div>

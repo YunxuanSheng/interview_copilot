@@ -116,6 +116,10 @@ export async function PUT(
     if (body.tips !== undefined) updateData.tips = body.tips
     if (body.tags !== undefined) updateData.tags = body.tags
     if (body.isPublic !== undefined) updateData.isPublic = body.isPublic
+    // 隐私设置
+    if (body.selectedQuestions !== undefined) updateData.selectedQuestions = body.selectedQuestions ? JSON.stringify(body.selectedQuestions) : null
+    if (body.enableAnswerSharing !== undefined) updateData.enableAnswerSharing = body.enableAnswerSharing
+    if (body.enablePersonalInfo !== undefined) updateData.enablePersonalInfo = body.enablePersonalInfo
 
     const updatedSharing = await prisma.interviewSharing.update({
       where: { id },

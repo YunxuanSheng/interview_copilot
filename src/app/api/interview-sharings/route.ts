@@ -114,7 +114,11 @@ export async function POST(request: NextRequest) {
       answers,
       tips,
       tags,
-      isPublic = true
+      isPublic = true,
+      // 隐私设置
+      selectedQuestions,
+      enableAnswerSharing = false,
+      enablePersonalInfo = false
     } = body
 
     // 验证必填字段
@@ -140,7 +144,11 @@ export async function POST(request: NextRequest) {
         answers: answers ? JSON.stringify(answers) : null,
         tips,
         tags,
-        isPublic
+        isPublic,
+        // 隐私设置
+        selectedQuestions: selectedQuestions ? JSON.stringify(selectedQuestions) : null,
+        enableAnswerSharing,
+        enablePersonalInfo
       },
       include: {
         user: {

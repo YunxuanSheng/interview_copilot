@@ -194,10 +194,16 @@ export default function SchedulesPage() {
   const fetchInterviewRecords = async () => {
     try {
       const response = await fetch("/api/interviews")
-      const data = await response.json()
-      setInterviewRecords(data)
+      const result = await response.json()
+      if (result.success && result.data) {
+        setInterviewRecords(result.data)
+      } else {
+        console.error("Failed to fetch interview records: Invalid response format")
+        setInterviewRecords([])
+      }
     } catch (error) {
       console.error("Failed to fetch interview records:", error)
+      setInterviewRecords([])
     }
   }
 

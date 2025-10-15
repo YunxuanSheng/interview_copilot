@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -32,9 +32,10 @@ interface InterviewSharing {
   }
 }
 
-export default function InterviewSharingDetailPage({ params }: { params: { id: string } }) {
+export default function InterviewSharingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { data: session } = useSession()
   const router = useRouter()
+  const resolvedParams = use(params)
   const [sharing, setSharing] = useState<InterviewSharing | null>(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
@@ -42,7 +43,7 @@ export default function InterviewSharingDetailPage({ params }: { params: { id: s
 
   const fetchSharing = useCallback(async () => {
     try {
-      const response = await fetch(`/api/interview-sharings/${params.id}`)
+      const response = await fetch(`/api/interview-sharings/${resolvedParams.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -56,13 +57,13 @@ export default function InterviewSharingDetailPage({ params }: { params: { id: s
     } finally {
       setLoading(false)
     }
-  }, [params.id, router])
+  }, [resolvedParams.id, router])
 
   const checkLikeStatus = useCallback(async () => {
     if (!session) return
 
     try {
-      const response = await fetch(`/api/interview-sharings/${params.id}/like`)
+      const response = await fetch(`/api/interview-sharings/${resolvedParams.id}/like`)
       const data = await response.json()
 
       if (data.success) {
@@ -71,7 +72,7 @@ export default function InterviewSharingDetailPage({ params }: { params: { id: s
     } catch (error) {
       console.error('检查点赞状态失败:', error)
     }
-  }, [params.id, session])
+  }, [resolvedParams.id, session])
 
   useEffect(() => {
     fetchSharing()
@@ -85,7 +86,7 @@ export default function InterviewSharingDetailPage({ params }: { params: { id: s
     }
 
     try {
-      const response = await fetch(`/api/interview-sharings/${params.id}/like`, {
+      const response = await fetch(`/api/interview-sharings/${resolvedParams.id}/like`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -109,7 +110,7 @@ export default function InterviewSharingDetailPage({ params }: { params: { id: s
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/interview-sharings/${params.id}`, {
+      const response = await fetch(`/api/interview-sharings/${resolvedParams.id}`, {
         method: 'DELETE'
       })
       const data = await response.json()
