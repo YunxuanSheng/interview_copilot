@@ -482,15 +482,16 @@ export default function InterviewsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">面试复盘</h1>
-          <p className="text-gray-600 mt-1">管理您的面试复盘记录和岗位进度</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">面试复盘</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">管理您的面试复盘记录和岗位进度</p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button asChild className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 flex-1 sm:flex-none">
             <Link href="/interviews/new">
               <Mic className="w-4 h-4 mr-2" />
-              新建面试复盘
+              <span className="hidden sm:inline">新建面试复盘</span>
+              <span className="sm:hidden">新建复盘</span>
             </Link>
           </Button>
         </div>
