@@ -22,15 +22,17 @@ import {
   LogOut,
   Menu,
   X,
-  FolderOpen
+  FolderOpen,
+  Share2
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 const navigation = [
   { name: "首页", href: "/", icon: Home },
   { name: "面试进度管理", href: "/schedules", icon: Calendar },
   { name: "面试复盘", href: "/interviews", icon: FileText },
   { name: "我的面经", href: "/experiences", icon: BookOpen },
+  { name: "面经广场", href: "/interview-sharings", icon: Share2 },
   { name: "项目整理", href: "/projects", icon: FolderOpen },
 ]
 
@@ -53,7 +55,7 @@ export default function Navigation() {
   const [creditsLoading, setCreditsLoading] = useState(false)
 
   // 获取credits状态
-  const fetchCreditsStatus = async () => {
+  const fetchCreditsStatus = useCallback(async () => {
     if (!session?.user || !('id' in session.user)) return
     
     setCreditsLoading(true)
@@ -69,14 +71,14 @@ export default function Navigation() {
     } finally {
       setCreditsLoading(false)
     }
-  }
+  }, [session?.user])
 
   // 当用户登录时获取credits状态
   useEffect(() => {
     if (session?.user && 'id' in session.user) {
       fetchCreditsStatus()
     }
-  }, [session?.user])
+  }, [session?.user, fetchCreditsStatus])
 
   // 调试信息
   console.log("Navigation - Session status:", status)

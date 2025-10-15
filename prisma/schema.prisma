@@ -29,6 +29,8 @@ model User {
   workExperiences     WorkExperience[]
   aiUsageStats        AiUsageStat[]
   userCredits         UserCredits?
+  interviewSharings   InterviewSharing[]
+  interviewLikes      InterviewLike[]
 
   @@map("users")
 }
@@ -141,6 +143,7 @@ model InterviewRecord {
   updatedAt     DateTime            @updatedAt
   questions     InterviewQuestion[]
   schedule      InterviewSchedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  sharings      InterviewSharing[]
 
   @@map("interview_records")
 }
@@ -281,4 +284,43 @@ model UserCredits {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_credits")
+}
+
+model InterviewSharing {
+  id                String            @id @default(cuid())
+  userId            String
+  interviewRecordId String?           // 关联的面试记录ID
+  company           String
+  position          String
+  department        String?
+  interviewDate     DateTime
+  round             Int               @default(1)
+  difficulty        String?           // 难度：easy, medium, hard
+  experience        String?           // 面试体验：positive, neutral, negative
+  questions         String            // JSON格式存储问题列表
+  answers           String?           // JSON格式存储答案（可选）
+  tips              String?           // 面试建议
+  tags              String?           // 标签，逗号分隔
+  isPublic          Boolean           @default(true)
+  viewCount         Int               @default(0)
+  likeCount         Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes             InterviewLike[]
+  interviewRecord   InterviewRecord?  @relation(fields: [interviewRecordId], references: [id], onDelete: SetNull)
+
+  @@map("interview_sharings")
+}
+
+model InterviewLike {
+  id                String           @id @default(cuid())
+  userId            String
+  interviewSharingId String
+  createdAt         DateTime         @default(now())
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewSharing  InterviewSharing @relation(fields: [interviewSharingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, interviewSharingId])
+  @@map("interview_likes")
 }

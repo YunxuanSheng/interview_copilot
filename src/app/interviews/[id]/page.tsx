@@ -19,7 +19,8 @@ import {
   AlertCircle,
   Lightbulb,
   Clock,
-  Plus
+  Plus,
+  Share2
 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
@@ -345,6 +346,12 @@ export default function InterviewDetailPage() {
               <Button onClick={() => setIsEditing(true)} variant="outline">
                 <Edit className="w-4 h-4 mr-2" />
                 编辑反馈
+              </Button>
+              <Button asChild variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                <Link href={`/interview-sharings/new?interviewRecordId=${params.id}`}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  发布面经
+                </Link>
               </Button>
             </>
           ) : (

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, Calendar, Building, MessageSquare, Mic } from "lucide-react"
+import { FileText, Search, Calendar, Building, MessageSquare, Mic, Share2 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -19,12 +19,10 @@ interface InterviewRecord {
   aiAnalysis?: string
   feedback?: string
   createdAt: string
-  schedule: {
-    company: string
-    position: string
-    interviewDate: string
-    round: number
-  }
+  company: string
+  position: string
+  interviewDate: string
+  round: number
   questions: {
     id: string
     questionText: string
@@ -81,13 +79,20 @@ export default function InterviewsPage() {
     try {
       const response = await fetch("/api/interviews")
       if (response.ok) {
-        const data = await response.json()
-        setRecords(data)
+        const result = await response.json()
+        if (result.success && result.data) {
+          setRecords(result.data)
+        } else {
+          console.error("Failed to fetch interview records: Invalid response format")
+          setRecords([])
+        }
       } else {
         console.error("Failed to fetch interview records:", response.statusText)
+        setRecords([])
       }
     } catch (error) {
       console.error("Failed to fetch interview records:", error)
+      setRecords([])
     } finally {
       setIsLoading(false)
     }
@@ -108,8 +113,8 @@ export default function InterviewsPage() {
   }
 
   const filteredRecords = records.filter(record => 
-    record.schedule.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.schedule.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.transcript?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -122,8 +127,8 @@ export default function InterviewsPage() {
 
   // 按公司分组，每个公司包含多个岗位
   const groupedByCompany = filteredRecords.reduce((acc, record) => {
-    const company = record.schedule.company
-    const position = record.schedule.position
+    const company = record.company
+    const position = record.position
     
     if (!acc[company]) {
       acc[company] = {
@@ -161,7 +166,7 @@ export default function InterviewsPage() {
     acc[company].totalQuestions += record.questions.length
     
     // 更新轮次信息
-    const round = record.schedule.round
+    const round = record.round
     if (!positionData.roundDetails.has(round)) {
       positionData.roundDetails.set(round, [])
     }
@@ -172,7 +177,7 @@ export default function InterviewsPage() {
     acc[company].totalRounds = Math.max(acc[company].totalRounds, round)
     
     // 更新日期信息
-    const interviewDate = new Date(record.schedule.interviewDate)
+    const interviewDate = new Date(record.interviewDate)
     if (!positionData.firstInterviewDate || interviewDate < positionData.firstInterviewDate) {
       positionData.firstInterviewDate = interviewDate
     }
@@ -321,6 +326,13 @@ export default function InterviewsPage() {
               <span className="sm:hidden">新建复盘</span>
             </Link>
           </Button>
+          <Button asChild variant="outline" className="flex-1 sm:flex-none">
+            <Link href="/interview-sharings">
+              <Share2 className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">面经广场</span>
+              <span className="sm:hidden">面经</span>
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -354,7 +366,7 @@ export default function InterviewsPage() {
             <div>
               <p className="text-xs font-medium text-gray-600">复盘公司</p>
               <p className="text-lg font-bold text-gray-900">
-                {new Set(records.map(r => r.schedule.company)).size}
+                {new Set(records.map(r => r.company)).size}
               </p>
             </div>
           </div>
@@ -402,9 +414,13 @@ export default function InterviewsPage() {
         </Card>
       ) : (
         <Card>
-          <CardHeader>
-            <CardTitle>面试复盘记录</CardTitle>
-            <CardDescription>您的面试复盘历史记录</CardDescription>
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">面试复盘记录</CardTitle>
+                <CardDescription className="text-sm sm:text-base mt-1">您的面试复盘历史记录</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -435,13 +451,13 @@ export default function InterviewsPage() {
                           </td>
                           <td className="py-3 px-4">
                             <Badge variant="outline" className="text-xs">
-                              第{record.schedule.round}轮
+                              第{record.round}轮
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <Calendar className="w-4 h-4" />
-                              {format(new Date(record.schedule.interviewDate), "MM月dd日", { locale: zhCN })}
+                              {format(new Date(record.interviewDate), "MM月dd日", { locale: zhCN })}
                             </div>
                           </td>
                           <td className="py-3 px-4">

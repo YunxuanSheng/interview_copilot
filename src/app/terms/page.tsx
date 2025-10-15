@@ -14,7 +14,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-3 text-gray-900">1. 协议范围</h2>
             <p className="mb-4">
-              本用户服务协议（以下简称"本协议"）是您与AI面试助理（以下简称"我们"或"本服务"）之间关于您使用本服务所订立的协议。请您仔细阅读本协议，特别是免除或者限制责任的条款。
+              本用户服务协议（以下简称&ldquo;本协议&rdquo;）是您与AI面试助理（以下简称&ldquo;我们&rdquo;或&ldquo;本服务&rdquo;）之间关于您使用本服务所订立的协议。请您仔细阅读本协议，特别是免除或者限制责任的条款。
             </p>
             <p className="mb-4">
               您通过网络页面点击注册、登录、使用本服务，即表示您已阅读、理解并同意接受本协议的全部内容，本协议即构成对双方均具有约束力的法律文件。

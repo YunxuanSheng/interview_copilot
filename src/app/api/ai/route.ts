@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { evaluationStandards, generateProfessionalFeedback } from '@/lib/evaluation-standards'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { checkAndRecordAiUsage } from '@/lib/ai-usage'
 
