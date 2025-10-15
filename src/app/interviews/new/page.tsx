@@ -29,10 +29,12 @@ interface Question {
   aiEvaluation: string
   recommendedAnswer?: string
   questionType: string
+  difficulty?: string
+  priority?: string
 }
 
 export default function NewInterviewPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -318,7 +320,9 @@ export default function NewInterviewPage() {
           userAnswer: q.answer,
           aiEvaluation: typeof q.evaluation === 'string' ? q.evaluation : JSON.stringify(q.evaluation),
           recommendedAnswer: typeof q.recommendedAnswer === 'string' ? q.recommendedAnswer : JSON.stringify(q.recommendedAnswer),
-          questionType: q.questionType || "technical"
+          questionType: q.questionType || "technical",
+          difficulty: q.difficulty || "medium",
+          priority: q.priority || "medium"
         }))
         
         setQuestions(analyzedQuestions)
@@ -328,88 +332,80 @@ export default function NewInterviewPage() {
           
           // 处理优势
           if (data.strengths && data.strengths.length > 0) {
-            analysis += "## 优势\n"
-            data.strengths.forEach((strength: any, index: number) => {
+            analysis += "**优势分析：**\n"
+            const strengthsText = data.strengths.map((strength: any) => {
               if (typeof strength === 'string') {
-                analysis += `${index + 1}. ${strength}\n`
+                return strength
               } else if (strength && typeof strength === 'object') {
-                analysis += `${index + 1}. ${strength.description || strength}\n`
+                return strength.description || strength
               }
-            })
-            analysis += "\n"
+              return strength
+            }).join(' ')
+            analysis += strengthsText + "\n\n"
           }
           
           // 处理不足
           if (data.weaknesses && data.weaknesses.length > 0) {
-            analysis += "## 不足\n"
-            data.weaknesses.forEach((weakness: any, index: number) => {
+            analysis += "**不足之处：**\n"
+            const weaknessesText = data.weaknesses.map((weakness: any) => {
               if (typeof weakness === 'string') {
-                analysis += `${index + 1}. ${weakness}\n`
+                return weakness
               } else if (weakness && typeof weakness === 'object') {
-                analysis += `${index + 1}. ${weakness.description || weakness}\n`
+                return weakness.description || weakness
               }
-            })
-            analysis += "\n"
+              return weakness
+            }).join(' ')
+            analysis += weaknessesText + "\n\n"
           }
           
           // 处理建议
           if (data.suggestions && data.suggestions.length > 0) {
-            analysis += "## 改进建议\n"
-            data.suggestions.forEach((suggestion: any, index: number) => {
+            analysis += "**改进建议：**\n"
+            const suggestionsText = data.suggestions.map((suggestion: any) => {
               if (typeof suggestion === 'string') {
-                analysis += `${index + 1}. ${suggestion}\n`
+                return suggestion
               } else if (suggestion && typeof suggestion === 'object') {
-                analysis += `${index + 1}. ${suggestion.suggestion || suggestion}\n`
+                return suggestion.suggestion || suggestion
               }
-            })
-            analysis += "\n"
+              return suggestion
+            }).join(' ')
+            analysis += suggestionsText + "\n\n"
           }
           
-          // 处理题目分析
-          if (data.questionAnalysis && data.questionAnalysis.length > 0) {
-            analysis += "## 题目分析\n"
-            data.questionAnalysis.forEach((q: any, index: number) => {
-              analysis += `### 题目 ${index + 1}\n`
-              analysis += `**问题：** ${q.question}\n`
-              analysis += `**回答：** ${q.answer}\n`
-              
-              // 处理评价
-              if (q.evaluation) {
-                if (typeof q.evaluation === 'string') {
-                  analysis += `**评价：** ${q.evaluation}\n`
-                } else if (typeof q.evaluation === 'object') {
-                  analysis += `**评价：** ${q.evaluation.specificFeedback || JSON.stringify(q.evaluation)}\n`
-                }
-              }
-              
-              analysis += "\n"
-            })
-          } else {
-            analysis += "## 题目分析\n"
-            analysis += "本次录音内容较短，未提取到具体的面试题目和回答。建议上传更完整的面试录音以获得更详细的分析。\n\n"
+          // 处理综合反馈
+          if (data.comprehensiveFeedback) {
+            const feedback = data.comprehensiveFeedback
+            if (feedback.technicalAssessment) {
+              analysis += `**技术能力评估：**\n${feedback.technicalAssessment}\n\n`
+            }
+            if (feedback.communicationSkills) {
+              analysis += `**表达沟通能力：**\n${feedback.communicationSkills}\n\n`
+            }
+            if (feedback.learningPotential) {
+              analysis += `**学习潜力：**\n${feedback.learningPotential}\n\n`
+            }
+            if (feedback.experienceEvaluation) {
+              analysis += `**项目经验：**\n${feedback.experienceEvaluation}\n\n`
+            }
+            if (feedback.overallImpression) {
+              analysis += `**整体印象：**\n${feedback.overallImpression}\n\n`
+            }
+            if (feedback.keyHighlights) {
+              analysis += `**关键亮点：**\n${feedback.keyHighlights}\n\n`
+            }
+            if (feedback.mainConcerns) {
+              analysis += `**主要关注点：**\n${feedback.mainConcerns}\n\n`
+            }
+            if (feedback.recommendation) {
+              analysis += `**总体建议：**\n${feedback.recommendation}\n\n`
+            }
           }
           
           return analysis.trim()
         }
 
-        // 格式化反馈总结
-        const formatFeedback = (data: any) => {
-          if (data.suggestions && data.suggestions.length > 0) {
-            return data.suggestions.map((suggestion: any) => {
-              if (typeof suggestion === 'string') {
-                return suggestion
-              } else if (suggestion && typeof suggestion === 'object') {
-                return suggestion.suggestion || suggestion.actionable || JSON.stringify(suggestion)
-              }
-              return suggestion
-            }).join('\n')
-          }
-          return ""
-        }
-
         setFormData(prev => ({
           ...prev,
-          feedback: formatFeedback(result.data),
           aiAnalysis: formatAnalysis(result.data)
         }))
         
@@ -452,7 +448,10 @@ export default function NewInterviewPage() {
             questionText: q.questionText,
             userAnswer: q.userAnswer,
             aiEvaluation: q.aiEvaluation,
-            questionType: q.questionType
+            recommendedAnswer: q.recommendedAnswer,
+            questionType: q.questionType,
+            difficulty: q.difficulty,
+            priority: q.priority
           }))
         }),
       })
@@ -563,6 +562,18 @@ export default function NewInterviewPage() {
   const selectedSchedule = formData.scheduleId && formData.scheduleId !== "skip" 
     ? schedules.find(s => s.id === formData.scheduleId) 
     : null
+
+  // 显示加载状态，避免页面刷新时的闪烁
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!session) {
     return (
@@ -1033,81 +1044,6 @@ export default function NewInterviewPage() {
               </CardContent>
             </Card>
 
-            {/* Feedback - 在窄屏幕上显示 */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CardTitle>反馈总结</CardTitle>
-                    {formData.feedback && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                        AI生成
-                      </span>
-                    )}
-                  </div>
-                  {formData.feedback && !isEditingFeedback && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingFeedback(true)}
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      编辑
-                    </Button>
-                  )}
-                </div>
-                <CardDescription>
-                  {formData.feedback ? "AI已自动生成反馈，您可手动调整" : "面试反馈和改进建议"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!formData.feedback ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-sm">反馈总结将在这里显示</p>
-                    <p className="text-xs text-gray-400 mt-1">完成AI分析后自动生成</p>
-                  </div>
-                ) : isEditingFeedback ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="feedback">反馈总结</Label>
-                    <Textarea
-                      id="feedback"
-                      placeholder="面试反馈和改进建议..."
-                      value={formData.feedback}
-                      onChange={(e) => handleInputChange("feedback", e.target.value)}
-                      rows={6}
-                      className="bg-green-50"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => setIsEditingFeedback(false)}
-                      >
-                        保存
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditingFeedback(false)}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <pre className="whitespace-pre-wrap text-sm text-gray-900">
-                        {formData.feedback}
-                      </pre>
-                    </div>
-                    <p className="text-xs text-green-600">✓ AI已自动生成</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Questions */}
@@ -1266,81 +1202,6 @@ export default function NewInterviewPage() {
             </CardContent>
             </Card>
 
-          {/* Feedback */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle>反馈总结</CardTitle>
-                  {formData.feedback && (
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                      AI生成
-                    </span>
-                  )}
-                </div>
-                {formData.feedback && !isEditingFeedback && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditingFeedback(true)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    编辑
-                  </Button>
-                )}
-              </div>
-              <CardDescription>
-                {formData.feedback ? "AI已自动生成反馈，您可手动调整" : "面试反馈和改进建议"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!formData.feedback ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-gray-400" />
-                  </div>
-                  <p className="text-sm">反馈总结将在这里显示</p>
-                  <p className="text-xs text-gray-400 mt-1">完成AI分析后自动生成</p>
-                </div>
-              ) : isEditingFeedback ? (
-                <div className="space-y-2">
-                  <Label htmlFor="feedback">反馈总结</Label>
-                  <Textarea
-                    id="feedback"
-                    placeholder="面试反馈和改进建议..."
-                    value={formData.feedback}
-                    onChange={(e) => handleInputChange("feedback", e.target.value)}
-                    rows={6}
-                    className="bg-green-50"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => setIsEditingFeedback(false)}
-                    >
-                      保存
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingFeedback(false)}
-                    >
-                      取消
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-900">
-                      {formData.feedback}
-                    </pre>
-                  </div>
-                  <p className="text-xs text-green-600">✓ AI已自动生成</p>
-                </div>
-              )}
-            </CardContent>
-            </Card>
 
             {/* Submit Button */}
             <div className="flex gap-4">

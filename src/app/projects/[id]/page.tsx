@@ -70,7 +70,7 @@ const STATUS_OPTIONS = [
 ]
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -290,6 +290,18 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       default:
         return <Clock className="w-4 h-4" />
     }
+  }
+
+  // 显示加载状态，避免页面刷新时的闪烁
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!session) {

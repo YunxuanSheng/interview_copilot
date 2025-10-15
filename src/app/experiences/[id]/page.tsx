@@ -59,7 +59,7 @@ const difficultyLevels = [
 ]
 
 export default function ExperienceDetailPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const params = useParams()
   const _router = useRouter()
   const [experience, setExperience] = useState<PersonalExperience | null>(null)
@@ -158,6 +158,18 @@ export default function ExperienceDetailPage() {
 
   const getDifficultyInfo = (difficulty: string) => {
     return difficultyLevels.find(d => d.value === difficulty) || difficultyLevels[1]
+  }
+
+  // 显示加载状态，避免页面刷新时的闪烁
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!session) {

@@ -270,8 +270,8 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
     const maxTokens = isLongConversation ? 4000 : 2000
     
     const systemPrompt = isLongConversation 
-      ? `你是面试分析专家。这是面试对话的第${chunkIndex}部分（共${totalChunks}部分），请分析这部分对话。`
-      : `你是面试分析专家。请分析以下面试对话。`
+      ? `你是面试助手，专门帮助面试者提升面试表现。这是面试对话的第${chunkIndex}部分（共${totalChunks}部分），请以帮助面试者改进的角度分析这部分对话。`
+      : `你是面试助手，专门帮助面试者提升面试表现。请以帮助面试者改进的角度分析以下面试对话。`
       
     const completion = await openai.chat.completions.create({
     model: model,
@@ -308,14 +308,14 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
     }
   ],
   "comprehensiveFeedback": {
-    "technicalAssessment": "对候选人技术能力的综合评估",
-    "communicationSkills": "对候选人沟通表达能力的评价",
-    "learningPotential": "对候选人学习能力和成长潜力的评估",
-    "experienceEvaluation": "对候选人项目经验和实践能力的评价",
-    "overallImpression": "对候选人整体表现的印象和评价",
-    "keyHighlights": "面试中的关键亮点和突出表现",
-    "mainConcerns": "主要关注点和需要改进的地方",
-    "recommendation": "是否推荐该候选人的建议和理由"
+    "technicalAssessment": "对面试者技术能力的积极评价和提升建议，3-5句完整分析，引用原话",
+    "communicationSkills": "对面试者表达沟通能力的积极评价和改进建议，3-5句完整分析，引用原话",
+    "learningPotential": "对面试者学习潜力的积极评估和成长方向，3-5句完整分析，引用原话",
+    "experienceEvaluation": "对面试者项目经验的积极评价和扩展建议，3-5句完整分析，引用原话",
+    "overallImpression": "对面试者整体表现的积极印象和鼓励性评价",
+    "keyHighlights": "面试中的关键亮点和值得保持的优势",
+    "mainConcerns": "需要重点关注和提升的方面",
+    "recommendation": "针对面试表现的改进建议和下一步学习方向"
   },
   "questionAnalysis": [
     {
@@ -323,26 +323,8 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
       "answer": "候选人的回答内容",
       "questionType": "algorithm",
       "difficulty": "medium",
-      "evaluation": {
-        "technicalAccuracy": "技术准确性评价",
-        "completeness": "回答完整性评价",
-        "clarity": "表达清晰度评价",
-        "depth": "技术深度评价",
-        "specificFeedback": "具体的优缺点分析",
-        "missingPoints": "遗漏的关键点",
-        "strengths": "回答中的亮点",
-        "improvements": "具体的改进建议"
-      },
-      "recommendedAnswer": {
-        "structure": "推荐回答的结构框架",
-        "keyPoints": ["关键点1", "关键点2"],
-        "technicalDetails": "技术细节说明",
-        "examples": "具体示例",
-        "bestPractices": "最佳实践建议",
-        "codeImplementation": "如果是算法题，提供完整的代码实现",
-        "correctAnswer": "如果是概念题，提供标准正确答案",
-        "explanation": "详细的解题思路和知识点解释"
-      }
+      "priority": "high",
+      "recommendedAnswer": "直接给出该问题的最佳答案，要详细完备，不要使用结构化模板。代码题必须给出格式化的代码实现，使用换行和缩进，概念题给出详细的解释和知识点，行为题给出详细的回答和例子。"
     }
   ]
 }
@@ -352,8 +334,17 @@ async function analyzeSingleChunk(transcript: string, chunkIndex: number, totalC
 2. questionAnalysis数组应该包含面试中出现的每一个问题
 3. 问题类型：algorithm(算法题)、system_design(系统设计)、behavioral(行为面试)、technical(技术问题)
 4. 难度：easy(简单)、medium(中等)、hard(困难)
-5. 提供具体、可操作的建议，避免简单的对错判断
-6. 重点关注候选人的整体表现和潜力`
+5. 优先级：high(高优先级，算法题、核心技术问题、系统设计题，一场面试不超过5个)、medium(中优先级)、low(低优先级，自我介绍、行为面试)
+6. 重点关注推荐答案的质量，这是最重要的输出
+7. 推荐答案要求：
+   - 算法题：提供完整、正确、格式化的代码实现，包含时间复杂度和空间复杂度分析
+   - 技术题：提供详细的概念解释、原理说明、应用场景和最佳实践
+   - 行为题：提供STAR方法的结构化回答，包含具体示例
+   - 系统设计题：提供系统架构图描述、关键组件、数据流、扩展性考虑
+8. 推荐答案要直接给出最佳答案，不要使用"结构："、"关键要点："等模板化格式
+9. 代码必须使用正确的换行和缩进格式，不要压缩在一行内
+10. 综合反馈要引用面试者的原话或思路，每个维度3-5句完整分析
+11. 始终保持积极、建设性的语调，专注于帮助面试者提升和改进，而不是评判或否定`
         },
         {
           role: "user",
@@ -368,7 +359,23 @@ ${transcript}
 3. 每个问题都要有对应的候选人回答内容
 4. 即使回答很简短（如"好的"、"没有了"），也要记录下来
 
-请确保提取到所有的问题和对应的回答。`
+请确保提取到所有的问题和对应的回答。
+
+特别注意：对于算法题，推荐答案中的代码必须使用正确的换行和缩进格式，例如：
+function quickSort(arr) {
+  if (arr.length <= 1) return arr;
+  const pivot = arr[arr.length - 1];
+  const left = [];
+  const right = [];
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (arr[i] < pivot) {
+      left.push(arr[i]);
+    } else {
+      right.push(arr[i]);
+    }
+  }
+  return [...quickSort(left), pivot, ...quickSort(right)];
+}`
         }
       ],
       temperature: 0.3,
@@ -436,13 +443,25 @@ ${transcript}
     console.error("OpenAI API error:", error)
     // 如果API调用失败，返回空结果
     return {
+      overallScore: 0,
       strengths: [],
       weaknesses: [],
       suggestions: [],
+      comprehensiveFeedback: {
+        technicalAssessment: "",
+        communicationSkills: "",
+        learningPotential: "",
+        experienceEvaluation: "",
+        overallImpression: "",
+        keyHighlights: "",
+        mainConcerns: "",
+        recommendation: ""
+      },
       questionAnalysis: []
     }
   }
 }
+
 
 // 生成面试建议
 async function generateInterviewSuggestion(question: string, currentAnswer?: string) {

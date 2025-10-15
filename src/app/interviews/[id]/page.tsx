@@ -414,19 +414,15 @@ export default function InterviewDetailPage() {
             </Card>
           )}
 
-          {/* AI分析结果 - 使用合并分析组件 */}
-          {aiAnalysis && (aiAnalysis.strengths.length > 0 || aiAnalysis.weaknesses.length > 0 || aiAnalysis.suggestions.length > 0) && (
-            <div id="ai-analysis">
-              <MergedAnalysis analysis={aiAnalysis as any} />
-            </div>
-          )}
 
           {/* 面试内容标签页 */}
           <Tabs defaultValue="questions" className="space-y-4">
             <TabsList>
               <TabsTrigger value="questions">面试题目</TabsTrigger>
               <TabsTrigger value="transcript">面试记录</TabsTrigger>
-              <TabsTrigger value="feedback">反馈评价</TabsTrigger>
+              {aiAnalysis && (
+                <TabsTrigger value="analysis">AI分析</TabsTrigger>
+              )}
             </TabsList>
 
             {/* 面试题目 */}
@@ -498,6 +494,7 @@ export default function InterviewDetailPage() {
                             </div>
                           </div>
                         )}
+
                         
                         {question.aiEvaluation && (
                           <div>
@@ -568,44 +565,12 @@ export default function InterviewDetailPage() {
                         {/* 显示推荐答案 */}
                         {question.recommendedAnswer && (
                           <div>
-                            {(() => {
-                              try {
-                                // 尝试解析JSON格式的推荐答案
-                                const parsedAnswer = typeof question.recommendedAnswer === 'string' 
-                                  ? JSON.parse(question.recommendedAnswer) 
-                                  : question.recommendedAnswer;
-                                
-                                // 检查是否是结构化的推荐答案对象
-                                if (parsedAnswer && typeof parsedAnswer === 'object' && 
-                                    (parsedAnswer.structure || parsedAnswer.keyPoints || parsedAnswer.technicalDetails)) {
-                                  return <RecommendedAnswer recommendedAnswer={parsedAnswer} />;
-                                } else {
-                                  // 如果是普通字符串，使用原来的显示方式
-                                  return (
-                                    <div>
-                                      <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
-                                      <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <div className="text-gray-800">
-                                          <SmartTextRenderer text={question.recommendedAnswer} />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                              } catch (error) {
-                                // 如果解析失败，使用原来的显示方式
-                                return (
-                                  <div>
-                                    <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
-                                    <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                      <div className="text-gray-800">
-                                        <SmartTextRenderer text={question.recommendedAnswer} />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            })()}
+                            <Label className="text-sm font-medium text-gray-700">AI推荐回答</Label>
+                            <div className="mt-1 p-4 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="text-gray-800 leading-relaxed">
+                                <SmartTextRenderer text={question.recommendedAnswer} />
+                              </div>
+                            </div>
                           </div>
                         )}
                       </CardContent>
@@ -674,49 +639,36 @@ export default function InterviewDetailPage() {
               </Card>
             </TabsContent>
 
-            {/* 反馈评价 */}
-            <TabsContent value="feedback" id="feedback">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    反馈评价
-                  </CardTitle>
-                  <CardDescription>
-                    面试官反馈和AI分析总结
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="feedback">反馈内容</Label>
-                        <Textarea
-                          id="feedback"
-                          value={editForm.feedback}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, feedback: e.target.value }))}
-                          placeholder="请输入面试反馈..."
-                          className="min-h-[200px] mt-2"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="prose max-w-none">
-                      {record.feedback ? (
-                        <p className="text-gray-900 leading-relaxed whitespace-pre-wrap">
-                          {record.feedback}
-                        </p>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p>暂无反馈内容，点击编辑添加反馈</p>
+            {/* AI分析 */}
+            {aiAnalysis && (
+              <TabsContent value="analysis" className="space-y-4" id="analysis">
+                {aiAnalysis.strengths && aiAnalysis.strengths.length > 0 ? (
+                  <MergedAnalysis analysis={aiAnalysis as any} />
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5" />
+                        AI分析
+                      </CardTitle>
+                      <CardDescription>
+                        AI对面试表现的分析和评价
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="prose max-w-none">
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                            <SmartTextRenderer text={record.aiAnalysis || ""} />
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            )}
+
           </Tabs>
       </div>
 

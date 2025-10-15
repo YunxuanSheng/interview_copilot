@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Trash2, Edit } from 'lucide-react'
+import { Trash2, Edit, Save, X } from 'lucide-react'
+import { SmartTextRenderer } from '@/components/smart-text-renderer'
 
 interface Question {
   id: string
@@ -14,6 +15,8 @@ interface Question {
   aiEvaluation: string
   recommendedAnswer?: string
   questionType: string
+  difficulty?: string
+  priority?: string
 }
 
 interface QuestionDisplayProps {
@@ -24,6 +27,9 @@ interface QuestionDisplayProps {
 }
 
 export function QuestionDisplay({ question, index, onUpdate, onRemove }: QuestionDisplayProps) {
+  const [isEditingRecommendedAnswer, setIsEditingRecommendedAnswer] = useState(false)
+  const [editingRecommendedAnswer, setEditingRecommendedAnswer] = useState(question.recommendedAnswer || "")
+
   // 格式化AI评价显示
   const formatEvaluation = (evaluation: string) => {
     try {
@@ -58,34 +64,28 @@ export function QuestionDisplay({ question, index, onUpdate, onRemove }: Questio
     return evaluation
   }
 
-  // 格式化推荐答案显示
+  // 格式化推荐答案显示 - 支持代码格式和换行
   const formatRecommendedAnswer = (answer: string) => {
-    try {
-      const parsed = JSON.parse(answer)
-      if (typeof parsed === 'object' && parsed !== null) {
-        // 如果是对象，提取关键信息
-        let result = ""
-        if (parsed.structure) {
-          result += `**结构：** ${parsed.structure}\n\n`
-        }
-        if (parsed.keyPoints && Array.isArray(parsed.keyPoints)) {
-          result += `**关键要点：**\n${parsed.keyPoints.map((point: string, i: number) => `${i + 1}. ${point}`).join('\n')}\n\n`
-        }
-        if (parsed.technicalDetails) {
-          result += `**技术细节：** ${parsed.technicalDetails}\n\n`
-        }
-        if (parsed.examples) {
-          result += `**示例：** ${parsed.examples}\n\n`
-        }
-        if (parsed.bestPractices) {
-          result += `**最佳实践：** ${parsed.bestPractices}`
-        }
-        return result.trim() || answer
-      }
-    } catch {
-      // 如果不是JSON，直接返回
-    }
+    if (!answer) return ""
+    
+    // 直接返回原始内容，保持换行和格式
     return answer
+  }
+
+  // 处理推荐答案编辑
+  const handleEditRecommendedAnswer = () => {
+    setEditingRecommendedAnswer(question.recommendedAnswer || "")
+    setIsEditingRecommendedAnswer(true)
+  }
+
+  const handleSaveRecommendedAnswer = () => {
+    onUpdate(question.id, "recommendedAnswer", editingRecommendedAnswer)
+    setIsEditingRecommendedAnswer(false)
+  }
+
+  const handleCancelEditRecommendedAnswer = () => {
+    setEditingRecommendedAnswer(question.recommendedAnswer || "")
+    setIsEditingRecommendedAnswer(false)
   }
 
   return (
@@ -160,26 +160,68 @@ export function QuestionDisplay({ question, index, onUpdate, onRemove }: Questio
       </div>
       
       <div className="space-y-2">
-        <Label>AI评价</Label>
-        <Textarea
-          placeholder="AI对回答的评价和建议..."
-          value={formatEvaluation(question.aiEvaluation)}
-          onChange={(e) => onUpdate(question.id, "aiEvaluation", e.target.value)}
-          rows={3}
-          className="bg-blue-50"
-        />
+        <div className="flex items-center gap-2">
+          <Label>优先级</Label>
+          <Badge variant={question.priority === 'high' ? 'destructive' : question.priority === 'medium' ? 'default' : 'secondary'}>
+            {question.priority === 'high' ? '高优先级' : question.priority === 'medium' ? '中优先级' : '低优先级'}
+          </Badge>
+        </div>
       </div>
       
       {question.recommendedAnswer && (
         <div className="space-y-2">
-          <Label>推荐答案</Label>
-          <Textarea
-            placeholder="AI推荐的标准答案..."
-            value={formatRecommendedAnswer(question.recommendedAnswer)}
-            onChange={(e) => onUpdate(question.id, "recommendedAnswer", e.target.value)}
-            rows={4}
-            className="bg-green-50"
-          />
+          <div className="flex justify-between items-center">
+            <Label>推荐答案</Label>
+            {!isEditingRecommendedAnswer && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditRecommendedAnswer}
+                className="h-8 px-2"
+              >
+                <Edit className="w-4 h-4 mr-1" />
+                编辑
+              </Button>
+            )}
+          </div>
+          
+          {isEditingRecommendedAnswer ? (
+            <div className="space-y-2">
+              <Textarea
+                placeholder="编辑推荐答案..."
+                value={editingRecommendedAnswer}
+                onChange={(e) => setEditingRecommendedAnswer(e.target.value)}
+                rows={8}
+                className="text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveRecommendedAnswer}
+                  className="h-8 px-3"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  保存
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEditRecommendedAnswer}
+                  className="h-8 px-3"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  取消
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-green-50 border rounded-md p-3 min-h-[100px]">
+              <SmartTextRenderer 
+                text={formatRecommendedAnswer(question.recommendedAnswer)} 
+                className="text-sm leading-relaxed"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

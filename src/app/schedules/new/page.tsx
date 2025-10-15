@@ -25,7 +25,7 @@ interface JobApplication {
 }
 
 export default function NewSchedulePage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
@@ -162,6 +162,18 @@ export default function NewSchedulePage() {
       ...prev,
       [field]: value
     }))
+  }
+
+  // 显示加载状态，避免页面刷新时的闪烁
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!session) {
