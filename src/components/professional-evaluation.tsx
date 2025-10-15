@@ -2,6 +2,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react'
+import { SmartTextRenderer } from './smart-text-renderer'
 
 interface ProfessionalEvaluationProps {
   evaluation: {
@@ -138,6 +139,9 @@ interface RecommendedAnswerProps {
     technicalDetails: string
     examples: string
     bestPractices: string
+    codeImplementation?: string
+    correctAnswer?: string
+    explanation?: string
   }
 }
 
@@ -175,26 +179,60 @@ export function RecommendedAnswer({ recommendedAnswer }: RecommendedAnswerProps)
         {/* 技术细节 */}
         <div>
           <h4 className="font-medium text-gray-900 mb-2">技术细节</h4>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            {recommendedAnswer.technicalDetails}
-          </p>
+          <div className="text-sm text-gray-700 leading-relaxed">
+            <SmartTextRenderer text={recommendedAnswer.technicalDetails} />
+          </div>
         </div>
 
         {/* 具体示例 */}
         <div>
           <h4 className="font-medium text-gray-900 mb-2">具体示例</h4>
-          <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg">
-            {recommendedAnswer.examples}
-          </p>
+          <div className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg">
+            <SmartTextRenderer text={recommendedAnswer.examples} />
+          </div>
         </div>
 
         {/* 最佳实践 */}
         <div>
           <h4 className="font-medium text-gray-900 mb-2">最佳实践</h4>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            {recommendedAnswer.bestPractices}
-          </p>
+          <div className="text-sm text-gray-700 leading-relaxed">
+            <SmartTextRenderer text={recommendedAnswer.bestPractices} />
+          </div>
         </div>
+
+        {/* 代码实现 - 针对算法题 */}
+        {recommendedAnswer.codeImplementation && (
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">代码实现</h4>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <SmartTextRenderer text={recommendedAnswer.codeImplementation} />
+            </div>
+          </div>
+        )}
+
+        {/* 标准答案 - 针对概念题 */}
+        {recommendedAnswer.correctAnswer && (
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">标准答案</h4>
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+              <div className="text-sm text-gray-800 leading-relaxed">
+                <SmartTextRenderer text={recommendedAnswer.correctAnswer} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 详细解释 */}
+        {recommendedAnswer.explanation && (
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">详细解释</h4>
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <div className="text-sm text-gray-800 leading-relaxed">
+                <SmartTextRenderer text={recommendedAnswer.explanation} />
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

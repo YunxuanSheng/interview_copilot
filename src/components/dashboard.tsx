@@ -6,17 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarIcon, FileText, BookOpen, TrendingUp, Clock, CheckCircle, Mail, Mic, CalendarDays, Users, ExternalLink, X } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
+// 首页采用与 /schedules 一致的简化月历网格，不再使用 ui/calendar 封装
 import Link from "next/link"
 import { addDays, format, isSameDay } from "date-fns"
-// @ts-expect-error - react-big-calendar types are not fully compatible
-import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
-import moment from 'moment'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
+import { zhCN } from "date-fns/locale"
 
-// 设置moment本地化
-moment.locale('zh-cn')
-const localizer = momentLocalizer(moment)
+// 采用 date-fns 的 zhCN 本地化
 
 interface DashboardStats {
   totalSchedules: number
@@ -64,9 +59,14 @@ export default function Dashboard() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [schedules, setSchedules] = useState<InterviewSchedule[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
-  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
-  const [isHoveringCard, setIsHoveringCard] = useState(false)
+  // 简化月历采用基于格子的悬浮详情，仅用 CSS group 控制显示
+  
+  // 计算今天的面试数量
+  const todaySchedules = schedules.filter(schedule => {
+    const scheduleDate = new Date(schedule.interviewDate)
+    const today = new Date()
+    return scheduleDate.toDateString() === today.toDateString() && schedule.status === "scheduled"
+  }).length
 
   useEffect(() => {
     if (session) {
@@ -75,19 +75,7 @@ export default function Dashboard() {
     }
   }, [session])
 
-  // 点击外部关闭hover卡片
-  useEffect(() => {
-    const handleClickOutside = (_event: MouseEvent) => {
-      if (hoveredEvent && !isHoveringCard) {
-        setHoveredEvent(null)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [hoveredEvent, isHoveringCard])
+  // 简化月历无全局 hover 卡片关闭逻辑
 
   // 轮播图自动播放
   useEffect(() => {
@@ -143,24 +131,7 @@ export default function Dashboard() {
     }
   }
 
-  // 日历事件数据
-  const calendarEvents = schedules.map(schedule => {
-    const interviewDate = new Date(schedule.interviewDate)
-    // 设置为同一天的开始和结束，避免跨天显示
-    const startOfDay = new Date(interviewDate)
-    startOfDay.setHours(9, 0, 0, 0) // 上午9点开始
-    
-    const endOfDay = new Date(interviewDate)
-    endOfDay.setHours(18, 0, 0, 0) // 下午6点结束
-    
-    return {
-      id: schedule.id,
-      title: `${schedule.company} - ${schedule.position}`,
-      start: startOfDay,
-      end: endOfDay,
-      resource: schedule
-    }
-  })
+  // 简化月历不再需要 react-big-calendar 的事件映射
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -175,100 +146,7 @@ export default function Dashboard() {
     }
   }
 
-  const eventStyleGetter = (event: {
-    resource?: InterviewSchedule
-  }) => {
-    const status = event.resource?.status
-    let backgroundColor = '#3174ad'
-    
-    switch (status) {
-      case "completed":
-        backgroundColor = '#28a745'
-        break
-      case "cancelled":
-        backgroundColor = '#dc3545'
-        break
-      case "scheduled":
-        backgroundColor = '#007bff'
-        break
-    }
-    
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '5px',
-        opacity: 0.8,
-        color: 'white',
-        border: '0px',
-        display: 'block'
-      }
-    }
-  }
-
-  const handleNavigate = (date: Date) => {
-    setCurrentDate(date)
-  }
-
-  // 自定义事件组件
-  const EventComponent = ({ event }: { event: {
-    id: string
-    title: string
-    start: Date
-    end: Date
-    resource: InterviewSchedule
-  } }) => {
-    const handleMouseEnter = (e: React.MouseEvent, eventData: { resource: InterviewSchedule }) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-      const cardWidth = 300
-      const cardHeight = 200
-      
-      // 计算最佳位置，避免超出视窗
-      let x = rect.left + rect.width / 2
-      let y = rect.bottom + 10  // 默认显示在下方
-      
-      // 水平位置调整
-      if (x + cardWidth / 2 > viewportWidth) {
-        x = viewportWidth - cardWidth / 2 - 10
-      }
-      if (x - cardWidth / 2 < 10) {
-        x = cardWidth / 2 + 10
-      }
-      
-      // 垂直位置调整 - 优先显示在下方，如果下方空间不够再显示在上方
-      if (y + cardHeight > viewportHeight - 10) {
-        y = rect.top - cardHeight - 10  // 显示在上方
-        if (y < 10) {
-          y = 10  // 确保不超出视窗顶部
-        }
-      }
-      
-      setHoverPosition({ x, y })
-      setHoveredEvent(eventData.resource)
-    }
-
-    const handleMouseLeave = () => {
-      // 延迟关闭，给用户时间移动到卡片上
-      setTimeout(() => {
-        if (!isHoveringCard) {
-          setHoveredEvent(null)
-        }
-      }, 100)
-    }
-
-    return (
-      <div
-        onMouseEnter={(e) => handleMouseEnter(e, { resource: event.resource })}
-        onMouseLeave={handleMouseLeave}
-        className="w-full h-full cursor-pointer"
-      >
-        <div className="text-xs truncate px-1">
-          {event.title}
-        </div>
-      </div>
-    )
-  }
+  // 移除 react-big-calendar 相关逻辑与组件
 
   if (!session) {
     return (
@@ -348,7 +226,11 @@ export default function Dashboard() {
           欢迎回来，{session.user?.name || "用户"}！
         </h1>
         <p className="text-blue-100">
-          今天有 {stats?.upcomingInterviews || 0} 场面试安排，继续加油！
+          {todaySchedules > 0 ? (
+            <>今天有 {todaySchedules} 场面试安排，继续加油！</>
+          ) : (
+            <>今天没有面试安排，是时候准备新的机会了！</>
+          )}
         </p>
       </div>
 
@@ -423,137 +305,200 @@ export default function Dashboard() {
             </Button>
           </CardHeader>
           <CardContent className="flex-1 relative">
-            <div className="h-[500px]">
-              <BigCalendar
-                localizer={localizer}
-                events={calendarEvents}
-                startAccessor="start"
-                endAccessor="end"
-                style={{ height: '100%' }}
-                view="month"
-                date={currentDate}
-                onNavigate={handleNavigate}
-                eventPropGetter={eventStyleGetter}
-                components={{
-                  event: EventComponent
-                }}
-                onSelectEvent={(_event: {
-                  id: string
-                  title: string
-                  start: Date
-                  end: Date
-                  resource: InterviewSchedule
-                }) => {
-                  // 可以添加点击事件的处理
-                }}
-                messages={{
-                  next: 'Next',
-                  previous: 'Previous',
-                  today: 'Today',
-                  month: 'Month',
-                  week: 'Week',
-                  day: 'Day',
-                  agenda: 'Agenda',
-                  date: 'Date',
-                  time: 'Time',
-                  event: 'Event',
-                  noEventsInRange: 'No events in this range',
-                  showMore: (total: number) => `+${total} more`
-                }}
-              />
-            </div>
-            
-            {/* Hover卡片 */}
-            {hoveredEvent && (
-              <div
-                className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-4 min-w-[300px] max-w-[400px]"
-                style={{
-                  left: `${hoverPosition.x}px`,
-                  top: `${hoverPosition.y}px`,
-                  transform: 'translateX(-50%)'
-                }}
-                onMouseEnter={() => setIsHoveringCard(true)}
-                onMouseLeave={() => setIsHoveringCard(false)}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg text-gray-900">
-                        {hoveredEvent.company}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {hoveredEvent.position}
-                      </p>
-                      {hoveredEvent.department && (
-                        <p className="text-xs text-gray-500">
-                          {hoveredEvent.department}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(hoveredEvent.status)}
-                      <button
-                        onClick={() => setHoveredEvent(null)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-gray-500" />
-                      <span>
-                        {format(new Date(hoveredEvent.interviewDate), "yyyy年MM月dd日 HH:mm")}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-500" />
-                      <span>第{hoveredEvent.round}轮面试</span>
-                    </div>
-                    
-                    {hoveredEvent.interviewLink && (
-                      <div className="flex items-center gap-2">
-                        <ExternalLink className="w-4 h-4 text-gray-500" />
-                        <a 
-                          href={hoveredEvent.interviewLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700 underline text-xs"
-                        >
-                          进入面试
-                        </a>
-                      </div>
-                    )}
-                    
-                    {hoveredEvent.tags && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">标签:</span>
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {hoveredEvent.tags}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button asChild size="sm" className="flex-1">
-                      <Link href={`/schedules/${hoveredEvent.id}`}>
-                        查看详情
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/schedules/${hoveredEvent.id}/edit`}>
-                        编辑
-                      </Link>
-                    </Button>
-                  </div>
+            <div className="space-y-4">
+              {/* 日历头部 - 月份导航 */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  {currentDate && format(currentDate, "yyyy年MM月", { locale: zhCN })}
+                </h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(currentDate || new Date())
+                      newDate.setMonth(newDate.getMonth() - 1)
+                      setCurrentDate(newDate)
+                    }}
+                  >
+                    ←
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(currentDate || new Date())
+                      newDate.setMonth(newDate.getMonth() + 1)
+                      setCurrentDate(newDate)
+                    }}
+                  >
+                    →
+                  </Button>
                 </div>
               </div>
-            )}
-            
+
+              {/* 完整的月份日历网格 */}
+              <div className="grid grid-cols-7 gap-1">
+                {/* 星期标题 */}
+                {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                  <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                    {day}
+                  </div>
+                ))}
+                
+                {/* 日历日期 */}
+                {(() => {
+                  const currentMonth = currentDate || new Date()
+                  const year = currentMonth.getFullYear()
+                  const month = currentMonth.getMonth()
+                  
+                  // 获取当月第一天和最后一天
+                  const firstDay = new Date(year, month, 1)
+                  const lastDay = new Date(year, month + 1, 0)
+                  const daysInMonth = lastDay.getDate()
+                  
+                  // 获取第一天是星期几（0=周日）
+                  const firstDayOfWeek = firstDay.getDay()
+                  
+                  // 生成日历网格
+                  const calendarDays = []
+                  
+                  // 添加空白日期（上个月的日期）
+                  for (let i = 0; i < firstDayOfWeek; i++) {
+                    calendarDays.push(
+                      <div key={`empty-${i}`} className="p-2 h-20"></div>
+                    )
+                  }
+                  
+                  // 添加当月日期
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day)
+                    const daySchedules = schedules.filter(schedule => {
+                      const scheduleDate = new Date(schedule.interviewDate)
+                      return scheduleDate.getFullYear() === year && 
+                             scheduleDate.getMonth() === month && 
+                             scheduleDate.getDate() === day
+                    })
+                    
+                    const isToday = date.toDateString() === new Date().toDateString()
+                    
+                    calendarDays.push(
+                      <div
+                        key={day}
+                        className={`relative p-2 h-20 border border-gray-200 group ${
+                          isToday ? 'bg-blue-50 border-blue-300' : 'bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex flex-col h-full">
+                          <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                            {day}
+                          </div>
+                          <div className="flex-1 flex flex-col gap-1 mt-1">
+                            {daySchedules.slice(0, 2).map((schedule) => (
+                              <div
+                                key={schedule.id}
+                                className="relative group/schedule"
+                              >
+                                <div
+                                  className={`text-xs px-1 py-0.5 rounded truncate cursor-pointer transition-colors ${
+                                    schedule.status === 'completed' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+                                    schedule.status === 'cancelled' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
+                                    'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                  }`}
+                                >
+                                  {schedule.company}
+                                </div>
+                                
+                                {/* 单个面试项目的hover详情 */}
+                                <div className="absolute z-30 top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 group-hover/schedule:opacity-100 transition-all duration-300 pointer-events-none group-hover/schedule:pointer-events-auto transform translate-y-1 group-hover/schedule:translate-y-0 min-w-80">
+                                  <div className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {schedule.company}
+                                      </div>
+                                      <button
+                                        className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                      <div className="border-l-3 border-blue-400 pl-3 py-2">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="font-medium text-base text-gray-900">
+                                            {schedule.position}
+                                          </div>
+                                          <div className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                            {format(new Date(schedule.interviewDate), 'HH:mm', { locale: zhCN })}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="text-sm text-gray-700 mb-2">
+                                          {format(new Date(schedule.interviewDate), 'yyyy年MM月dd日 EEEE', { locale: zhCN })}
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2 text-sm mb-2">
+                                          <span className="text-gray-500">第{schedule.round}轮</span>
+                                          <span className="text-gray-300">·</span>
+                                          {getStatusBadge(schedule.status)}
+                                        </div>
+                                        
+                                        {schedule.department && (
+                                          <div className="text-sm text-gray-500 mb-2">
+                                            部门：{schedule.department}
+                                          </div>
+                                        )}
+                                        
+                                        {schedule.notes && (
+                                          <div className="text-sm text-gray-600 mb-3 p-2 bg-gray-50 rounded">
+                                            {schedule.notes}
+                                          </div>
+                                        )}
+                                        
+                                        <div className="flex gap-2">
+                                          <Button asChild size="sm" className="flex-1">
+                                            <Link href={`/schedules/${schedule.id}`}>
+                                              查看详情
+                                            </Link>
+                                          </Button>
+                                          
+                                          {schedule.interviewLink && (
+                                            <Button asChild variant="outline" size="sm" className="flex-1">
+                                              <a href={schedule.interviewLink} target="_blank" rel="noopener noreferrer">
+                                                进入面试
+                                              </a>
+                                            </Button>
+                                          )}
+                                          
+                                          <Button asChild variant="outline" size="sm" className="flex-1">
+                                            <Link href={`/schedules/${schedule.id}/edit`}>
+                                              编辑
+                                            </Link>
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {daySchedules.length > 2 && (
+                              <div className="text-xs text-gray-500">
+                                +{daySchedules.length - 2}个
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  return calendarDays
+                })()}
+              </div>
+            </div>
+
             <div className="flex justify-center mt-4">
               <Button asChild variant="outline" size="sm" className="bg-white/80 hover:bg-white shadow-sm">
                 <Link href="/schedules">查看完整日历</Link>

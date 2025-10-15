@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { Copy, Check } from "lucide-react"
 import { toast } from "sonner"
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface SmartTextRendererProps {
   text: string
@@ -68,11 +70,20 @@ export function SmartTextRenderer({ text, className = "" }: SmartTextRendererPro
               )}
               复制
             </button>
-            <pre className="bg-gray-100 p-4 rounded font-mono text-sm overflow-x-auto whitespace-pre">
-              <code className={language ? `language-${language}` : ""}>
-                {code.trim()}
-              </code>
-            </pre>
+            <SyntaxHighlighter
+              language={language || 'javascript'}
+              style={tomorrow}
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                lineHeight: '1.5',
+              }}
+              showLineNumbers={false}
+              wrapLines={true}
+            >
+              {code.trim()}
+            </SyntaxHighlighter>
           </div>
         </div>
       )

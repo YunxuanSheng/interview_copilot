@@ -179,8 +179,17 @@ export default function SchedulesPage() {
   }
 
   const fetchJobApplications = async () => {
-    // 暂时注释掉，等待API重构
-    setJobApplications([])
+    try {
+      const response = await fetch("/api/job-applications")
+      if (!response.ok) {
+        throw new Error("Failed to fetch job applications")
+      }
+      const data = await response.json()
+      setJobApplications(data)
+    } catch (error) {
+      console.error("Failed to fetch job applications:", error)
+      setJobApplications([])
+    }
   }
 
   const fetchInterviewRecords = async () => {
@@ -435,7 +444,7 @@ export default function SchedulesPage() {
               </CardDescription>
             </div>
             <Button asChild variant="outline">
-              <Link href="/schedules/add">
+              <Link href="/schedules/job-application/new">
                 <Plus className="w-4 h-4 mr-2" />
                 新建投递
               </Link>
@@ -495,7 +504,7 @@ export default function SchedulesPage() {
                   <h3 className="text-lg font-medium mb-2">暂无岗位投递</h3>
                   <p className="text-gray-500 mb-4">开始创建您的第一个岗位投递吧</p>
                   <Button asChild variant="outline">
-                    <Link href="/schedules/add">
+                    <Link href="/schedules/job-application/new">
                       <Plus className="w-4 h-4 mr-2" />
                       新建投递
                     </Link>

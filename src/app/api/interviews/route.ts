@@ -103,6 +103,7 @@ export async function GET(_request: NextRequest) {
             questionText: true,
             userAnswer: true,
             aiEvaluation: true,
+            recommendedAnswer: true,
             questionType: true
           }
         }
@@ -148,11 +149,13 @@ export async function POST(request: NextRequest) {
             questionText: string
             userAnswer?: string
             aiEvaluation?: string
+            recommendedAnswer?: string
             questionType?: string
           }) => ({
             questionText: q.questionText,
             userAnswer: q.userAnswer,
             aiEvaluation: q.aiEvaluation,
+            recommendedAnswer: q.recommendedAnswer,
             questionType: q.questionType
           })) || []
         }

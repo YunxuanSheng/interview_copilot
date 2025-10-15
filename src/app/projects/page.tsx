@@ -271,7 +271,7 @@ export default function ProjectsPage() {
                         </Badge>
                       </div>
                       
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-1">
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                         {project.description}
                       </p>
 
@@ -295,30 +295,6 @@ export default function ProjectsPage() {
                           ))}
                         </div>
                       )}
-                    </div>
-
-                    {/* 中间：进度信息 */}
-                    <div className="flex items-center gap-6 mx-6">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">
-                          {cardStats.total}
-                        </div>
-                        <div className="text-xs text-gray-500">总卡片</div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {cardStats.completed}
-                        </div>
-                        <div className="text-xs text-gray-500">已完成</div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {Math.round((cardStats.completed / Math.max(cardStats.total, 1)) * 100)}%
-                        </div>
-                        <div className="text-xs text-gray-500">完成率</div>
-                      </div>
                     </div>
 
                     {/* 右侧：操作按钮 */}
@@ -359,17 +335,31 @@ export default function ProjectsPage() {
                     </div>
                   </div>
 
-                  {/* 进度条 */}
-                  {cardStats.total > 0 && (
-                    <div className="mt-4">
+                  {/* 底部：进度信息与进度条（移动到下方，给描述让位） */}
+                  <div className="mt-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-6 text-sm text-gray-600">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-base font-semibold text-gray-900">{cardStats.total}</span>
+                        <span className="text-xs">总卡片</span>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-base font-semibold text-green-600">{cardStats.completed}</span>
+                        <span className="text-xs">已完成</span>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-base font-semibold text-blue-600">{Math.round((cardStats.completed / Math.max(cardStats.total, 1)) * 100)}%</span>
+                        <span className="text-xs">完成率</span>
+                      </div>
+                    </div>
+                    {cardStats.total > 0 && (
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${(cardStats.completed / Math.max(cardStats.total, 1)) * 100}%` }}
                         ></div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )

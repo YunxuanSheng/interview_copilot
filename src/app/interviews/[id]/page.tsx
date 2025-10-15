@@ -29,7 +29,8 @@ import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { SmartTextRenderer } from "@/components/smart-text-renderer"
 import { ProfessionalEvaluation, RecommendedAnswer } from "@/components/professional-evaluation"
-import { TableOfContents } from "@/components/table-of-contents"
+import { MergedAnalysis } from "@/components/merged-analysis"
+import { toast } from "sonner"
 
 interface InterviewRecord {
   id: string
@@ -61,10 +62,40 @@ interface InterviewRecord {
 }
 
 interface AIAnalysis {
-  overallScore: number
-  strengths: string[]
-  weaknesses: string[]
-  suggestions: string[]
+  overallScore?: number
+  strengths: Array<{
+    category: string
+    description: string
+    evidence: string
+  }>
+  weaknesses: Array<{
+    category: string
+    description: string
+    impact: string
+    improvement: string
+  }>
+  suggestions: Array<{
+    priority: string
+    category: string
+    suggestion: string
+    actionable: string
+  }>
+  questionAnalysis?: Array<{
+    question: string
+    answer: string
+    questionType: string
+    difficulty: string
+    evaluation: {
+      technicalAccuracy: string
+      completeness: string
+      clarity: string
+      depth: string
+      specificFeedback: string
+      missingPoints: string
+      strengths: string
+      improvements: string
+    }
+  }>
 }
 
 const questionTypes = [
@@ -85,6 +116,7 @@ export default function InterviewDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null)
+  const [importingIds, setImportingIds] = useState<string[]>([])
 
   // 编辑表单状态
   const [editForm, setEditForm] = useState({
@@ -175,6 +207,65 @@ export default function InterviewDetailPage() {
   const getQuestionTypeInfo = (type: string) => {
     return questionTypes.find(t => t.value === type) || questionTypes[3]
   }
+
+  const importOneExperience = useCallback(async (q: { id: string; questionText: string; userAnswer?: string; questionType?: string; difficulty?: string }) => {
+    if (!record) return
+    try {
+      setImportingIds(prev => [...prev, q.id])
+      const payload = {
+        company: record.schedule.company || "",
+        questionType: q.questionType || "technical",
+        questionText: q.questionText,
+        answerText: q.userAnswer || "",
+        difficulty: q.difficulty || ""
+      }
+      const res = await fetch("/api/experiences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        throw new Error("导入失败")
+      }
+      toast.success("已加入我的面经")
+    } catch (e) {
+      toast.error("导入失败，请重试")
+    } finally {
+      setImportingIds(prev => prev.filter(id => id !== q.id))
+    }
+  }, [record])
+
+  const importAllExperiences = useCallback(async () => {
+    if (!record || !record.questions?.length) return
+    try {
+      const company = record.schedule.company || ""
+      const tasks = record.questions.map(q => {
+        const payload = {
+          company,
+          questionType: q.questionType || "technical",
+          questionText: q.questionText,
+          answerText: q.userAnswer || "",
+          difficulty: q.difficulty || ""
+        }
+        return fetch("/api/experiences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+      })
+      const results = await Promise.allSettled(tasks)
+      const successCount = results.filter(r => r.status === "fulfilled").length
+      if (successCount > 0) {
+        toast.success(`已加入 ${successCount} 条到我的面经`)
+      }
+      const failCount = results.length - successCount
+      if (failCount > 0) {
+        toast.error(`${failCount} 条导入失败，请重试`)
+      }
+    } catch {
+      toast.error("批量导入失败，请重试")
+    }
+  }, [record])
 
   if (!session) {
     return (
@@ -284,10 +375,8 @@ export default function InterviewDetailPage() {
         </div>
       )}
 
-      {/* 主要内容区域 - 左右分栏布局 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* 左侧主要内容 */}
-        <div className="lg:col-span-3 space-y-6">
+      {/* 主要内容区域（移除目录导航，简化为单列/响应式） */}
+      <div className="space-y-6">
           {/* 概念介绍卡片 - 只在有AI分析时显示 */}
           {aiAnalysis && (aiAnalysis.strengths.length > 0 || aiAnalysis.weaknesses.length > 0 || aiAnalysis.suggestions.length > 0) && (
             <Card id="concepts">
@@ -325,74 +414,10 @@ export default function InterviewDetailPage() {
             </Card>
           )}
 
-          {/* AI分析结果 */}
+          {/* AI分析结果 - 使用合并分析组件 */}
           {aiAnalysis && (aiAnalysis.strengths.length > 0 || aiAnalysis.weaknesses.length > 0 || aiAnalysis.suggestions.length > 0) && (
-            <div id="ai-analysis" className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* 优点 */}
-              {aiAnalysis.strengths.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="w-5 h-5" />
-                      优点
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {aiAnalysis.strengths.map((strength, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-sm text-gray-700">{strength}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 不足 */}
-              {aiAnalysis.weaknesses.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-red-700">
-                      <AlertTriangle className="w-5 h-5" />
-                      不足
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {aiAnalysis.weaknesses.map((weakness, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-sm text-gray-700">{weakness}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 建议 */}
-              {aiAnalysis.suggestions.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-blue-700">
-                      <Lightbulb className="w-5 h-5" />
-                      建议
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {aiAnalysis.suggestions.map((suggestion, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-sm text-gray-700">{suggestion}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+            <div id="ai-analysis">
+              <MergedAnalysis analysis={aiAnalysis as any} />
             </div>
           )}
 
@@ -408,11 +433,9 @@ export default function InterviewDetailPage() {
             <TabsContent value="questions" className="space-y-4" id="questions">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">面试题目</h3>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/experiences/new">
-                    <Plus className="w-4 h-4 mr-2" />
-                    一键导入我的面经
-                  </Link>
+                <Button variant="outline" size="sm" onClick={importAllExperiences}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  一键全部加入
                 </Button>
               </div>
               
@@ -441,11 +464,20 @@ export default function InterviewDetailPage() {
                             <Badge className={typeInfo.color}>
                               {typeInfo.label}
                             </Badge>
-                            <Button asChild variant="outline" size="sm">
-                              <Link href={`/experiences/new?question=${encodeURIComponent(question.questionText)}&answer=${encodeURIComponent(question.userAnswer || '')}&type=${question.questionType || 'technical'}`}>
-                                <Plus className="w-3 h-3 mr-1" />
-                                导入我的面经
-                              </Link>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => importOneExperience({
+                                id: question.id,
+                                questionText: question.questionText,
+                                userAnswer: question.userAnswer,
+                                questionType: question.questionType,
+                                difficulty: question.difficulty
+                              })}
+                              disabled={importingIds.includes(question.id)}
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              {importingIds.includes(question.id) ? "导入中..." : "加入我的面经"}
                             </Button>
                           </div>
                         </div>
@@ -471,7 +503,55 @@ export default function InterviewDetailPage() {
                           <div>
                             <Label className="text-sm font-medium text-gray-700">AI评价</Label>
                             <div className="mt-1 text-gray-700">
-                              <SmartTextRenderer text={question.aiEvaluation} />
+                              {/* 优先按结构化JSON渲染，回退到纯文本 */}
+                              {(() => {
+                                try {
+                                  const parsed = JSON.parse(question.aiEvaluation)
+                                  if (parsed && typeof parsed === 'object') {
+                                    return (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <div className="text-sm font-medium mb-1">技术准确性</div>
+                                          <p className="text-sm text-gray-700">{parsed.technicalAccuracy}</p>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium mb-1">回答完整性</div>
+                                          <p className="text-sm text-gray-700">{parsed.completeness}</p>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium mb-1">表达清晰度</div>
+                                          <p className="text-sm text-gray-700">{parsed.clarity}</p>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium mb-1">技术深度</div>
+                                          <p className="text-sm text-gray-700">{parsed.depth}</p>
+                                        </div>
+                                        {parsed.specificFeedback && (
+                                          <div className="md:col-span-2">
+                                            <div className="text-sm font-medium mb-1">具体反馈</div>
+                                            <p className="text-sm text-gray-700">{parsed.specificFeedback}</p>
+                                          </div>
+                                        )}
+                                        {(parsed.missingPoints || parsed.strengths || parsed.improvements) && (
+                                          <div className="md:col-span-2">
+                                            <ProfessionalEvaluation evaluation={{
+                                              technicalAccuracy: parsed.technicalAccuracy || '',
+                                              completeness: parsed.completeness || '',
+                                              clarity: parsed.clarity || '',
+                                              depth: parsed.depth || '',
+                                              specificFeedback: parsed.specificFeedback || '',
+                                              missingPoints: parsed.missingPoints || '',
+                                              strengths: parsed.strengths || '',
+                                              improvements: parsed.improvements || ''
+                                            }} />
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  }
+                                } catch {}
+                                return <SmartTextRenderer text={question.aiEvaluation} />
+                              })()}
                             </div>
                           </div>
                         )}
@@ -638,17 +718,6 @@ export default function InterviewDetailPage() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-
-        {/* 右侧目录导航 */}
-        <div className="lg:col-span-1">
-          <TableOfContents 
-            hasAiAnalysis={!!(aiAnalysis && (aiAnalysis.strengths.length > 0 || aiAnalysis.weaknesses.length > 0 || aiAnalysis.suggestions.length > 0))}
-            hasQuestions={record.questions.length > 0}
-            hasTranscript={!!record.transcript}
-            hasFeedback={!!record.feedback}
-          />
-        </div>
       </div>
 
       {/* 底部信息卡片 */}

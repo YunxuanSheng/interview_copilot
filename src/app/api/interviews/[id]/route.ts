@@ -228,6 +228,7 @@ export async function GET(
             questionText: true,
             userAnswer: true,
             aiEvaluation: true,
+            recommendedAnswer: true,
             questionType: true
           }
         }
@@ -344,6 +345,7 @@ export async function PUT(
             questionText: string
             userAnswer?: string
             aiEvaluation?: string
+            recommendedAnswer?: string
             questionType?: string
             score?: number
           }) => ({
@@ -351,6 +353,7 @@ export async function PUT(
             questionText: q.questionText,
             userAnswer: q.userAnswer,
             aiEvaluation: q.aiEvaluation,
+            recommendedAnswer: q.recommendedAnswer,
             questionType: q.questionType,
             score: q.score
           }))
@@ -375,6 +378,7 @@ export async function PUT(
               questionText: true,
               userAnswer: true,
               aiEvaluation: true,
+              recommendedAnswer: true,
               questionType: true,
               score: true
             }

@@ -67,6 +67,7 @@ export default function NewInterviewPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [isEditingAiAnalysis, setIsEditingAiAnalysis] = useState(false)
   const [isEditingFeedback, setIsEditingFeedback] = useState(false)
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
 
   useEffect(() => {
     if (session) {
@@ -581,11 +582,13 @@ export default function NewInterviewPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/interviews">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          返回
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">新建面试复盘</h1>
@@ -593,12 +596,26 @@ export default function NewInterviewPage() {
         </div>
       </div>
 
-      {/* Form */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        {/* Main Form */}
-        <div className="xl:col-span-3 space-y-6">
-          {/* Schedule Selection */}
-          <Card>
+      {/* Step Indicator */}
+      <div className="w-full">
+        <div className="flex items-center justify-center gap-3 md:gap-4 text-sm">
+          <div className={`flex items-center gap-2 ${currentStep === 1 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${currentStep === 1 ? 'bg-blue-600' : 'bg-gray-300'}`}>1</div>
+            <span>上传与关联</span>
+          </div>
+          <div className="h-px w-12 md:w-24 bg-gray-200" />
+          <div className={`flex items-center gap-2 ${currentStep === 2 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${currentStep === 2 ? 'bg-blue-600' : 'bg-gray-300'}`}>2</div>
+            <span>记录与分析</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Step 1: 上传与关联 */}
+      {currentStep === 1 && (
+        <div className="max-w-3xl mx-auto space-y-6">
+            {/* Schedule Selection */}
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
@@ -751,10 +768,10 @@ export default function NewInterviewPage() {
                 )}
               </div>
             </CardContent>
-          </Card>
+            </Card>
 
-          {/* Audio Upload */}
-          <Card>
+            {/* Audio Upload */}
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mic className="w-5 h-5" />
@@ -830,24 +847,41 @@ export default function NewInterviewPage() {
                   <Sparkles className="w-4 h-4 mr-2" />
                   {isUploading ? "转文字中..." : "语音转文字"}
                 </Button>
-                
-                {formData.transcript && (
-                  <Button 
-                    onClick={handleAnalyze} 
-                    disabled={isAnalyzing}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {isAnalyzing ? "AI分析中..." : "AI智能分析"}
-                  </Button>
+                {!audioFile && (
+                  <p className="text-xs text-gray-500 text-center">请先选择并上传录音文件</p>
                 )}
               </div>
             </CardContent>
-          </Card>
+            </Card>
 
-          {/* Interview Transcript */}
-          <Card>
+            {/* Step navigation */}
+            <div className="flex gap-4">
+              <Button 
+                className="flex-1" 
+                onClick={() => setCurrentStep(2)}
+                disabled={!formData.transcript}
+              >
+                下一步
+              </Button>
+              {!formData.transcript && (
+                <div className="flex-1 text-xs text-gray-500 self-center">
+                  完成“语音转文字”后方可进入下一步
+                </div>
+              )}
+              <Button variant="outline" asChild>
+                <Link href="/interviews">取消</Link>
+              </Button>
+            </div>
+        </div>
+      )}
+
+      {/* Step 2: 记录与分析 */}
+      {currentStep === 2 && (
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+          {/* Main Form */}
+          <div className="xl:col-span-3 space-y-6">
+            {/* Interview Transcript */}
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
@@ -871,9 +905,22 @@ export default function NewInterviewPage() {
                 {formData.transcript && (
                   <p className="text-xs text-green-600">✓ AI已自动生成内容</p>
                 )}
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      onClick={handleAnalyze} 
+                      disabled={isAnalyzing || !formData.transcript}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {isAnalyzing ? "AI分析中..." : "AI智能分析"}
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCurrentStep(1)}
+                    >返回上一步</Button>
+                  </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
 
           {/* AI Analysis - 在窄屏幕上显示 */}
           <div className="xl:hidden space-y-6">
@@ -1105,10 +1152,10 @@ export default function NewInterviewPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
 
-        {/* Sidebar - 在大屏幕上显示 */}
-        <div className="hidden xl:block xl:col-span-2 space-y-6">
+          {/* Sidebar - 在大屏幕上显示 */}
+          <div className="hidden xl:block xl:col-span-2 space-y-6">
           {/* AI Analysis */}
           <Card>
             <CardHeader>
@@ -1217,7 +1264,7 @@ export default function NewInterviewPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
 
           {/* Feedback */}
           <Card>
@@ -1293,19 +1340,20 @@ export default function NewInterviewPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
 
-          {/* Submit Button */}
-          <div className="flex gap-4">
-            <Button onClick={handleSubmit} disabled={isLoading} className="flex-1">
-              {isLoading ? "保存中..." : "创建复盘记录"}
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/interviews">取消</Link>
-            </Button>
+            {/* Submit Button */}
+            <div className="flex gap-4">
+              <Button onClick={handleSubmit} disabled={isLoading} className="flex-1">
+                {isLoading ? "保存中..." : "创建复盘记录"}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/interviews">取消</Link>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
