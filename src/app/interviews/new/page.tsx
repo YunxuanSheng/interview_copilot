@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles, Edit, TrendingUp, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { QuestionDisplay } from "@/components/question-display"
 
 interface Schedule {
   id: string
@@ -310,18 +311,13 @@ export default function NewInterviewPage() {
         setAnalysis(result.data)
         
         // 将AI分析的问题添加到questions数组
-        const analyzedQuestions: Question[] = (result.data.questionAnalysis || []).map((q: {
-          question: string
-          answer: string
-          evaluation: string
-          recommendedAnswer?: string
-        }, index: number) => ({
+        const analyzedQuestions: Question[] = (result.data.questionAnalysis || []).map((q: any, index: number) => ({
           id: `ai-${index}-${Math.random().toString(36).substr(2, 9)}`,
           questionText: q.question,
           userAnswer: q.answer,
-          aiEvaluation: q.evaluation,
-          recommendedAnswer: q.recommendedAnswer,
-          questionType: "technical"
+          aiEvaluation: typeof q.evaluation === 'string' ? q.evaluation : JSON.stringify(q.evaluation),
+          recommendedAnswer: typeof q.recommendedAnswer === 'string' ? q.recommendedAnswer : JSON.stringify(q.recommendedAnswer),
+          questionType: q.questionType || "technical"
         }))
         
         setQuestions(analyzedQuestions)
@@ -329,37 +325,63 @@ export default function NewInterviewPage() {
         const formatAnalysis = (data: any) => {
           let analysis = ""
           
+          // 处理优势
           if (data.strengths && data.strengths.length > 0) {
             analysis += "## 优势\n"
-            data.strengths.forEach((strength: string, index: number) => {
-              analysis += `${index + 1}. ${strength}\n`
+            data.strengths.forEach((strength: any, index: number) => {
+              if (typeof strength === 'string') {
+                analysis += `${index + 1}. ${strength}\n`
+              } else if (strength && typeof strength === 'object') {
+                analysis += `${index + 1}. ${strength.description || strength}\n`
+              }
             })
             analysis += "\n"
           }
           
+          // 处理不足
           if (data.weaknesses && data.weaknesses.length > 0) {
             analysis += "## 不足\n"
-            data.weaknesses.forEach((weakness: string, index: number) => {
-              analysis += `${index + 1}. ${weakness}\n`
+            data.weaknesses.forEach((weakness: any, index: number) => {
+              if (typeof weakness === 'string') {
+                analysis += `${index + 1}. ${weakness}\n`
+              } else if (weakness && typeof weakness === 'object') {
+                analysis += `${index + 1}. ${weakness.description || weakness}\n`
+              }
             })
             analysis += "\n"
           }
           
+          // 处理建议
           if (data.suggestions && data.suggestions.length > 0) {
             analysis += "## 改进建议\n"
-            data.suggestions.forEach((suggestion: string, index: number) => {
-              analysis += `${index + 1}. ${suggestion}\n`
+            data.suggestions.forEach((suggestion: any, index: number) => {
+              if (typeof suggestion === 'string') {
+                analysis += `${index + 1}. ${suggestion}\n`
+              } else if (suggestion && typeof suggestion === 'object') {
+                analysis += `${index + 1}. ${suggestion.suggestion || suggestion}\n`
+              }
             })
             analysis += "\n"
           }
           
+          // 处理题目分析
           if (data.questionAnalysis && data.questionAnalysis.length > 0) {
             analysis += "## 题目分析\n"
             data.questionAnalysis.forEach((q: any, index: number) => {
               analysis += `### 题目 ${index + 1}\n`
               analysis += `**问题：** ${q.question}\n`
               analysis += `**回答：** ${q.answer}\n`
-              analysis += `**评价：** ${q.evaluation}\n\n`
+              
+              // 处理评价
+              if (q.evaluation) {
+                if (typeof q.evaluation === 'string') {
+                  analysis += `**评价：** ${q.evaluation}\n`
+                } else if (typeof q.evaluation === 'object') {
+                  analysis += `**评价：** ${q.evaluation.specificFeedback || JSON.stringify(q.evaluation)}\n`
+                }
+              }
+              
+              analysis += "\n"
             })
           } else {
             analysis += "## 题目分析\n"
@@ -369,9 +391,24 @@ export default function NewInterviewPage() {
           return analysis.trim()
         }
 
+        // 格式化反馈总结
+        const formatFeedback = (data: any) => {
+          if (data.suggestions && data.suggestions.length > 0) {
+            return data.suggestions.map((suggestion: any) => {
+              if (typeof suggestion === 'string') {
+                return suggestion
+              } else if (suggestion && typeof suggestion === 'object') {
+                return suggestion.suggestion || suggestion.actionable || JSON.stringify(suggestion)
+              }
+              return suggestion
+            }).join('\n')
+          }
+          return ""
+        }
+
         setFormData(prev => ({
           ...prev,
-          feedback: (result.data.suggestions || []).join('\n'),
+          feedback: formatFeedback(result.data),
           aiAnalysis: formatAnalysis(result.data)
         }))
         
@@ -1050,81 +1087,13 @@ export default function NewInterviewPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {questions.map((question, index) => (
-                <div key={question.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-medium">题目 {index + 1}</h4>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeQuestion(question.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>题目内容</Label>
-                    <Textarea
-                      placeholder="请输入面试题目..."
-                      value={question.questionText}
-                      onChange={(e) => updateQuestion(question.id, "questionText", e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>我的回答</Label>
-                    <Textarea
-                      placeholder="记录您的回答..."
-                      value={question.userAnswer}
-                      onChange={(e) => updateQuestion(question.id, "userAnswer", e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>题目类型</Label>
-                      <Select
-                        value={question.questionType}
-                        onValueChange={(value) => updateQuestion(question.id, "questionType", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="algorithm">算法题</SelectItem>
-                          <SelectItem value="system_design">系统设计</SelectItem>
-                          <SelectItem value="behavioral">行为面试</SelectItem>
-                          <SelectItem value="technical">技术问题</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>AI评价</Label>
-                    <Textarea
-                      placeholder="AI对回答的评价和建议..."
-                      value={question.aiEvaluation}
-                      onChange={(e) => updateQuestion(question.id, "aiEvaluation", e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>推荐答案</Label>
-                    <Textarea
-                      placeholder="AI推荐的标准答案或改进建议..."
-                      value={question.recommendedAnswer || ""}
-                      onChange={(e) => updateQuestion(question.id, "recommendedAnswer", e.target.value)}
-                      rows={3}
-                      className="bg-blue-50 border-blue-200"
-                    />
-                  </div>
-                </div>
+                <QuestionDisplay
+                  key={question.id}
+                  question={question}
+                  index={index}
+                  onUpdate={updateQuestion}
+                  onRemove={removeQuestion}
+                />
               ))}
               
               {questions.length === 0 && (

@@ -28,6 +28,7 @@ import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { SmartTextRenderer } from "@/components/smart-text-renderer"
+import { ProfessionalEvaluation, RecommendedAnswer } from "@/components/professional-evaluation"
 import { TableOfContents } from "@/components/table-of-contents"
 
 interface InterviewRecord {
@@ -54,6 +55,8 @@ interface InterviewRecord {
     recommendedAnswer?: string
     score?: number
     questionType?: string
+    evaluation?: any
+    difficulty?: string
   }[]
 }
 
@@ -472,16 +475,57 @@ export default function InterviewDetailPage() {
                             </div>
                           </div>
                         )}
+
+                        {/* 专业评价 */}
+                        {question.evaluation && (
+                          <ProfessionalEvaluation 
+                            evaluation={question.evaluation}
+                            questionType={question.questionType}
+                            difficulty={question.difficulty}
+                          />
+                        )}
                         
                         {/* 显示推荐答案 */}
                         {question.recommendedAnswer && (
                           <div>
-                            <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
-                            <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <div className="text-gray-800">
-                                <SmartTextRenderer text={question.recommendedAnswer} />
-                              </div>
-                            </div>
+                            {(() => {
+                              try {
+                                // 尝试解析JSON格式的推荐答案
+                                const parsedAnswer = typeof question.recommendedAnswer === 'string' 
+                                  ? JSON.parse(question.recommendedAnswer) 
+                                  : question.recommendedAnswer;
+                                
+                                // 检查是否是结构化的推荐答案对象
+                                if (parsedAnswer && typeof parsedAnswer === 'object' && 
+                                    (parsedAnswer.structure || parsedAnswer.keyPoints || parsedAnswer.technicalDetails)) {
+                                  return <RecommendedAnswer recommendedAnswer={parsedAnswer} />;
+                                } else {
+                                  // 如果是普通字符串，使用原来的显示方式
+                                  return (
+                                    <div>
+                                      <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
+                                      <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="text-gray-800">
+                                          <SmartTextRenderer text={question.recommendedAnswer} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              } catch (error) {
+                                // 如果解析失败，使用原来的显示方式
+                                return (
+                                  <div>
+                                    <Label className="text-sm font-medium text-gray-700">推荐答案</Label>
+                                    <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                      <div className="text-gray-800">
+                                        <SmartTextRenderer text={question.recommendedAnswer} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            })()}
                           </div>
                         )}
                       </CardContent>

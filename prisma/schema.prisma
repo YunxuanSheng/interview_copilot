@@ -131,6 +131,8 @@ model InterviewSchedule {
   // Relations
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   interviewRecords InterviewRecord[]
+  jobApplication JobApplication?  @relation(fields: [jobApplicationId], references: [id])
+  jobApplicationId String?
 
   @@map("interview_schedules")
 }
