@@ -22,13 +22,14 @@ import {
   LogOut,
   Menu,
   X,
+  Briefcase,
   FolderOpen
 } from "lucide-react"
 import { useState } from "react"
 
 const navigation = [
   { name: "首页", href: "/", icon: Home },
-  { name: "面试日程", href: "/schedules", icon: Calendar },
+  { name: "面试进度管理", href: "/schedules", icon: Calendar },
   { name: "面试复盘", href: "/interviews", icon: FileText },
   { name: "我的面经", href: "/experiences", icon: BookOpen },
   { name: "项目整理", href: "/projects", icon: FolderOpen },

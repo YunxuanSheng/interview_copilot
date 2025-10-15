@@ -176,6 +176,59 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions) as Session | null
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { id: scheduleId } = await params
+    const body = await request.json()
+    const { status } = body
+
+    // 如果是demo用户，返回模拟更新后的数据
+    if (session.user.email === "demo@example.com") {
+      const updatedSchedule = {
+        id: scheduleId,
+        company: "腾讯",
+        position: "前端开发工程师",
+        department: "技术部",
+        interviewDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        interviewLink: "https://meeting.tencent.com/room/123456",
+        round: 1,
+        tags: "技术面试,前端,React",
+        notes: "第一轮技术面试，主要考察前端基础知识和React框架使用",
+        status: status || "scheduled",
+        createdAt: new Date().toISOString()
+      }
+      return NextResponse.json(updatedSchedule)
+    }
+
+    const schedule = await prisma.interviewSchedule.update({
+      where: {
+        id: scheduleId,
+        userId: session.user.id
+      },
+      data: {
+        status
+      }
+    })
+
+    return NextResponse.json(schedule)
+  } catch (error) {
+    console.error("Update schedule status error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -101,7 +101,7 @@ export default function ScheduleDetailPage() {
       case "scheduled":
         return <Badge variant="default" className="bg-blue-100 text-blue-800">待面试</Badge>
       case "completed":
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">已完成</Badge>
+        return <Badge variant="secondary" className="bg-green-100 text-green-800">已结束</Badge>
       case "cancelled":
         return <Badge variant="destructive" className="bg-red-100 text-red-800">已取消</Badge>
       default:
@@ -258,7 +258,7 @@ export default function ScheduleDetailPage() {
                     {getStatusBadge(schedule.status)}
                     <span className={`text-sm ${getStatusColor(schedule.status)}`}>
                       {schedule.status === "scheduled" && "即将进行"}
-                      {schedule.status === "completed" && "已完成"}
+                      {schedule.status === "completed" && "已结束"}
                       {schedule.status === "cancelled" && "已取消"}
                     </span>
                   </div>

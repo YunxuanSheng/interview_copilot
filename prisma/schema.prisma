@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,32 +8,31 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String?  // 密码字段，可选（支持OAuth登录）
-  name      String?
-  image     String?
-  phone     String?
-  location  String?
-  summary   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  interviewSchedules InterviewSchedule[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  password            String?
+  name                String?
+  image               String?
+  phone               String?
+  location            String?
+  summary             String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  accounts            Account[]
+  educations          Education[]
+  interviewSchedules  InterviewSchedule[]
+  jobApplications     JobApplication[]
   personalExperiences PersonalExperience[]
-  accounts          Account[]
-  sessions          Session[]
-  educations        Education[]
-  workExperiences   WorkExperience[]
-  skills           Skill[]
-  projects         Project[]
+  projects            Project[]
+  sessions            Session[]
+  skills              Skill[]
+  workExperiences     WorkExperience[]
 
   @@map("users")
 }
 
 model Education {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   school      String
   degree      String
@@ -44,27 +40,25 @@ model Education {
   startDate   DateTime
   endDate     DateTime?
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("educations")
 }
 
 model WorkExperience {
-  id          String   @id @default(cuid())
-  userId      String
-  company     String
-  position    String
-  startDate   DateTime
-  endDate     DateTime?
-  description String?
+  id           String    @id @default(cuid())
+  userId       String
+  company      String
+  position     String
+  startDate    DateTime
+  endDate      DateTime?
+  description  String?
   achievements String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("work_experiences")
 }
@@ -73,12 +67,11 @@ model Skill {
   id        String   @id @default(cuid())
   userId    String
   name      String
-  level     String   // beginner, intermediate, advanced, expert
-  category  String   // technical, language, soft_skill, etc.
+  level     String
+  category  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("skills")
 }
@@ -96,8 +89,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -114,59 +106,53 @@ model Session {
 }
 
 model InterviewSchedule {
-  id             String   @id @default(cuid())
-  userId         String
-  company        String
-  position       String
-  department     String?
-  interviewDate  DateTime
-  interviewLink  String?
-  round          Int      @default(1)
-  tags           String?
-  notes          String?
-  status         String   @default("scheduled") // scheduled, completed, cancelled
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  interviewRecords InterviewRecord[]
-  jobApplication JobApplication?  @relation(fields: [jobApplicationId], references: [id])
+  id               String            @id @default(cuid())
+  userId           String
+  company          String
+  position         String
+  department       String?
+  interviewDate    DateTime
+  interviewLink    String?
+  round            Int               @default(1)
+  tags             String?
+  notes            String?
+  status           String            @default("scheduled")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   jobApplicationId String?
+  interviewRecords InterviewRecord[]
+  jobApplication   JobApplication?   @relation(fields: [jobApplicationId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("interview_schedules")
 }
 
 model InterviewRecord {
-  id             String   @id @default(cuid())
-  scheduleId     String
-  audioFilePath  String?
-  transcript     String?
-  aiAnalysis     String?
-  overallScore   Int?
-  feedback       String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  schedule       InterviewSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  questions      InterviewQuestion[]
+  id            String              @id @default(cuid())
+  scheduleId    String
+  audioFilePath String?
+  transcript    String?
+  aiAnalysis    String?
+  overallScore  Int?
+  feedback      String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  questions     InterviewQuestion[]
+  schedule      InterviewSchedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@map("interview_records")
 }
 
 model InterviewQuestion {
-  id                String   @id @default(cuid())
+  id                String          @id @default(cuid())
   recordId          String
   questionText      String
   userAnswer        String?
   aiEvaluation      String?
-  recommendedAnswer String?  // AI推荐的标准答案
   score             Int?
-  questionType      String?  // algorithm, system_design, behavioral, etc.
-  createdAt         DateTime @default(now())
-
-  // Relations
+  questionType      String?
+  createdAt         DateTime        @default(now())
+  recommendedAnswer String?
   record            InterviewRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
 
   @@map("interview_questions")
@@ -179,73 +165,89 @@ model PersonalExperience {
   questionType String
   questionText String
   answerText   String?
-  difficulty   String?  // easy, medium, hard
-  tags         String?  // 手动添加的标签，逗号分隔
-  clusterId    String?  // 相似问题聚类ID
+  difficulty   String?
+  tags         String?
+  clusterId    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  // Relations
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("personal_experiences")
 }
 
 model Project {
-  id          String   @id @default(cuid())
+  id          String            @id @default(cuid())
   userId      String
   name        String
-  role        String   // 扮演角色：前端、产品、测试、算法、运维等
-  company     String?  // 所属公司
-  department  String?  // 所属部门
-  workType    String?  // 工作类型：实习、正式、外包、兼职等
-  description String   // 项目简介
-  timeRange   String?  // 所属时间段
-  techStack   String?  // 关键技术栈，逗号分隔
-  status      String   @default("active") // active, archived
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String
+  company     String?
+  department  String?
+  workType    String?
+  description String
+  timeRange   String?
+  techStack   String?
+  status      String            @default("active")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   cards       ProjectCard[]
   documents   ProjectDocument[]
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("projects")
 }
 
 model ProjectCard {
-  id          String   @id @default(cuid())
-  projectId   String
-  category    String   // 角度分类：项目背景、职责拆解、难点挑战、技术实现、协作沟通、反思与优化
-  question    String   // 问题内容
-  answer      String?  // 用户回答
-  aiSuggestion String? // AI建议（从哪里找信息）
-  status      String   @default("draft") // draft, answered, completed
-  tags        String?  // 标签，逗号分隔
-  priority    Int      @default(1) // 优先级 1-5
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  projectId    String
+  category     String
+  question     String
+  answer       String?
+  aiSuggestion String?
+  status       String   @default("draft")
+  tags         String?
+  priority     Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("project_cards")
 }
 
 model ProjectDocument {
-  id          String   @id @default(cuid())
-  projectId   String
-  fileName    String
-  fileType    String   // pdf, docx, md, txt
-  fileUrl     String   // 文件存储URL
-  content     String?  // 解析后的文本内容
-  parseDepth  String   @default("medium") // low, medium, high
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  projectId  String
+  fileName   String
+  fileType   String
+  fileUrl    String
+  content    String?
+  parseDepth String   @default("medium")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("project_documents")
+}
+
+model JobApplication {
+  id             String              @id @default(cuid())
+  userId         String
+  companyName    String
+  positionName   String
+  department     String?
+  status         String              @default("已投递")
+  priority       String              @default("medium")
+  appliedDate    DateTime            @default(now())
+  jobUrl         String?
+  jobDescription String?
+  isReferral     Boolean             @default(false)
+  referrerName   String?
+  salary         String?
+  location       String?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  schedules      InterviewSchedule[]
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("job_applications")
 }

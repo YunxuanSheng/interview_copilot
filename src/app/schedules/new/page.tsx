@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,14 +9,30 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Building, Briefcase, Users, Link as LinkIcon, Tag, FileText } from "lucide-react"
+import { ArrowLeft, Calendar, Building, Briefcase, Users, Link as LinkIcon, Tag, FileText, Check, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+
+interface JobApplication {
+  id: string
+  company: string
+  position: string
+  department?: string
+  status: string
+  appliedDate: string
+  jobUrl?: string
+  notes?: string
+}
 
 export default function NewSchedulePage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>([])
+  const [matchedApplications, setMatchedApplications] = useState<JobApplication[]>([])
+  const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null)
+  const [showJobSelection, setShowJobSelection] = useState(false)
   const [formData, setFormData] = useState({
     company: "",
     position: "",
@@ -26,8 +42,80 @@ export default function NewSchedulePage() {
     interviewLink: "",
     round: "1",
     tags: "",
-    notes: ""
+    notes: "",
+    jobApplicationId: ""
   })
+
+  // 获取岗位投递数据
+  useEffect(() => {
+    if (session) {
+      fetchJobApplications()
+    }
+  }, [session])
+
+  // 处理URL参数
+  useEffect(() => {
+    const jobApplicationId = searchParams.get('jobApplicationId')
+    if (jobApplicationId && jobApplications.length > 0) {
+      const application = jobApplications.find(app => app.id === jobApplicationId)
+      if (application) {
+        setSelectedApplication(application)
+        setFormData(prev => ({
+          ...prev,
+          company: application.company,
+          position: application.position,
+          department: application.department || "",
+          jobApplicationId: application.id
+        }))
+      }
+    }
+  }, [searchParams, jobApplications])
+
+  const fetchJobApplications = async () => {
+    try {
+      const response = await fetch("/api/job-applications")
+      const data = await response.json()
+      setJobApplications(data)
+    } catch (error) {
+      console.error("Failed to fetch job applications:", error)
+    }
+  }
+
+  // 公司名匹配岗位
+  const handleCompanyChange = (company: string) => {
+    setFormData(prev => ({ ...prev, company }))
+    
+    if (company.trim()) {
+      const matched = jobApplications.filter(app => 
+        app.company.toLowerCase().includes(company.toLowerCase())
+      )
+      setMatchedApplications(matched)
+      setShowJobSelection(matched.length > 0)
+    } else {
+      setMatchedApplications([])
+      setShowJobSelection(false)
+    }
+  }
+
+  // 选择匹配的岗位
+  const handleSelectApplication = (application: JobApplication) => {
+    setSelectedApplication(application)
+    setFormData(prev => ({
+      ...prev,
+      company: application.company,
+      position: application.position,
+      department: application.department || "",
+      jobApplicationId: application.id
+    }))
+    setShowJobSelection(false)
+  }
+
+  // 跳过岗位选择
+  const handleSkipJobSelection = () => {
+    setShowJobSelection(false)
+    setSelectedApplication(null)
+    setFormData(prev => ({ ...prev, jobApplicationId: "" }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,7 +138,8 @@ export default function NewSchedulePage() {
         body: JSON.stringify({
           ...formData,
           interviewDate: interviewDateTime.toISOString(),
-          round: parseInt(formData.round)
+          round: parseInt(formData.round),
+          jobApplicationId: formData.jobApplicationId || null
         }),
       })
 
@@ -126,7 +215,7 @@ export default function NewSchedulePage() {
                   id="company"
                   placeholder="例如：腾讯"
                   value={formData.company}
-                  onChange={(e) => handleInputChange("company", e.target.value)}
+                  onChange={(e) => handleCompanyChange(e.target.value)}
                   required
                 />
               </div>
@@ -145,6 +234,89 @@ export default function NewSchedulePage() {
                 />
               </div>
             </div>
+
+            {/* 岗位选择卡片 */}
+            {showJobSelection && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    发现匹配的投递岗位
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    选择对应的岗位，或跳过此步骤
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {matchedApplications.map((application) => (
+                    <div
+                      key={application.id}
+                      className="p-3 border rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => handleSelectApplication(application)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{application.position}</h4>
+                          <p className="text-xs text-gray-600">{application.company}</p>
+                          {application.department && (
+                            <p className="text-xs text-gray-500">{application.department}</p>
+                          )}
+                        </div>
+                        <Check className="w-4 h-4 text-blue-600" />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSkipJobSelection}
+                      className="flex-1"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      跳过
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 已选择的岗位 */}
+            {selectedApplication && (
+              <Card className="border-green-200 bg-green-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    已关联岗位
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-3 border rounded-lg bg-white">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">{selectedApplication.position}</h4>
+                        <p className="text-xs text-gray-600">{selectedApplication.company}</p>
+                        {selectedApplication.department && (
+                          <p className="text-xs text-gray-500">{selectedApplication.department}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedApplication(null)
+                          setFormData(prev => ({ ...prev, jobApplicationId: "" }))
+                        }}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Department */}
             <div className="space-y-2">

@@ -142,7 +142,8 @@ export async function POST(request: NextRequest) {
       interviewLink,
       round,
       tags,
-      notes
+      notes,
+      jobApplicationId
     } = body
 
     const schedule = await prisma.interviewSchedule.create({
@@ -155,7 +156,8 @@ export async function POST(request: NextRequest) {
         interviewLink,
         round: round || 1,
         tags,
-        notes
+        notes,
+        jobApplicationId: jobApplicationId || null
       }
     })
 
