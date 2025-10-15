@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "输入数据格式错误", details: error.errors },
+        { error: "输入数据格式错误", details: error.issues },
         { status: 400 }
       )
     }

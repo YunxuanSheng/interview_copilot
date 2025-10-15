@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
@@ -17,18 +16,16 @@ import {
   MessageSquare,
   Mic,
   TrendingUp,
-  CheckCircle,
   AlertCircle,
   Lightbulb,
   Clock,
-  AlertTriangle,
   Plus
 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { SmartTextRenderer } from "@/components/smart-text-renderer"
-import { ProfessionalEvaluation, RecommendedAnswer } from "@/components/professional-evaluation"
+import { ProfessionalEvaluation } from "@/components/professional-evaluation"
 import { MergedAnalysis } from "@/components/merged-analysis"
 import { toast } from "sonner"
 
@@ -140,8 +137,8 @@ export default function InterviewDetailPage() {
         try {
           const analysis = JSON.parse(data.aiAnalysis)
           setAiAnalysis(analysis)
-        } catch (e) {
-          console.error("Failed to parse AI analysis:", e)
+    } catch {
+      console.error("Failed to parse AI analysis:")
           // 如果解析失败，设置默认的AI分析结构
           setAiAnalysis({
             overallScore: 0,
@@ -228,7 +225,7 @@ export default function InterviewDetailPage() {
         throw new Error("导入失败")
       }
       toast.success("已加入我的面经")
-    } catch (e) {
+    } catch {
       toast.error("导入失败，请重试")
     } finally {
       setImportingIds(prev => prev.filter(id => id !== q.id))

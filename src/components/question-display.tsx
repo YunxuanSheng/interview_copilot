@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -30,39 +29,6 @@ export function QuestionDisplay({ question, index, onUpdate, onRemove }: Questio
   const [isEditingRecommendedAnswer, setIsEditingRecommendedAnswer] = useState(false)
   const [editingRecommendedAnswer, setEditingRecommendedAnswer] = useState(question.recommendedAnswer || "")
 
-  // 格式化AI评价显示
-  const formatEvaluation = (evaluation: string) => {
-    try {
-      const parsed = JSON.parse(evaluation)
-      if (typeof parsed === 'object' && parsed !== null) {
-        // 如果是对象，提取关键信息
-        if (parsed.specificFeedback) {
-          return parsed.specificFeedback
-        } else if (parsed.feedback) {
-          return parsed.feedback
-        } else {
-          // 构建友好的评价文本
-          let result = ""
-          if (parsed.technicalAccuracy) {
-            result += `技术准确性: ${parsed.technicalAccuracy}\n`
-          }
-          if (parsed.completeness) {
-            result += `完整性: ${parsed.completeness}\n`
-          }
-          if (parsed.clarity) {
-            result += `表达清晰度: ${parsed.clarity}\n`
-          }
-          if (parsed.depth) {
-            result += `技术深度: ${parsed.depth}`
-          }
-          return result.trim() || evaluation
-        }
-      }
-    } catch {
-      // 如果不是JSON，直接返回
-    }
-    return evaluation
-  }
 
   // 格式化推荐答案显示 - 支持代码格式和换行
   const formatRecommendedAnswer = (answer: string) => {

@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Calendar, Plus, Search, Clock, Users, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, X, Trash2, Briefcase, Edit, MapPin, DollarSign, User } from "lucide-react"
+import { Calendar, Plus, Search, Clock, Mail, CalendarDays, List, ArrowUpDown, ExternalLink, Trash2, Briefcase, Edit, MapPin, DollarSign, User } from "lucide-react"
 import Link from "next/link"
 import { format, addDays, isToday, isTomorrow, isYesterday } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -86,7 +86,6 @@ export default function SchedulesPage() {
   }>>([])
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   
   // 工作申请相关状态
   const [jobApplicationSearchTerm, setJobApplicationSearchTerm] = useState("")
@@ -106,7 +105,7 @@ export default function SchedulesPage() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement
       if (!target.closest('.group\\/schedule')) {
-        setHoveredDate(null)
+        // setHoveredDate(null) // 已删除hoveredDate状态
       }
     }
 
@@ -203,7 +202,7 @@ export default function SchedulesPage() {
   }
 
   // 工作申请相关函数 - 暂时注释掉，等待API重构
-  const handleDeleteApplication = async (id: string) => {
+  const handleDeleteApplication = async (_id: string) => {
     toast.error("功能暂时不可用，等待API重构")
   }
 
@@ -212,7 +211,7 @@ export default function SchedulesPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdateApplication = async (formData: FormData) => {
+  const handleUpdateApplication = async (_formData: FormData) => {
     toast.error("功能暂时不可用，等待API重构")
   }
 
@@ -322,24 +321,6 @@ export default function SchedulesPage() {
     }
   }
 
-  const getApplicationStatusBadge = (status: string) => {
-    switch (status) {
-      case "applied":
-        return <Badge variant="outline" className="bg-gray-100 text-gray-800">已投递</Badge>
-      case "screening":
-        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">筛选中</Badge>
-      case "interview":
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">面试中</Badge>
-      case "offer":
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">已发offer</Badge>
-      case "rejected":
-        return <Badge variant="destructive" className="bg-red-100 text-red-800">已拒绝</Badge>
-      case "withdrawn":
-        return <Badge variant="outline" className="bg-gray-100 text-gray-600">已撤回</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
 
   const getReviewStatusBadge = (scheduleId: string) => {
     if (hasReviewed(scheduleId)) {
@@ -742,7 +723,7 @@ export default function SchedulesPage() {
                               {day}
                             </div>
                             <div className="flex-1 flex flex-col gap-1 mt-1">
-                              {daySchedules.slice(0, 2).map((schedule, index) => (
+                              {daySchedules.slice(0, 2).map((schedule, _index) => (
                                 <div
                                   key={schedule.id}
                                   className="relative group/schedule"
@@ -770,7 +751,7 @@ export default function SchedulesPage() {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
-                                            setHoveredDate(null)
+                                            // setHoveredDate(null) // 已删除hoveredDate状态
                                           }}
                                           className="text-gray-400 hover:text-gray-600 text-lg leading-none"
                                         >

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star, CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react'
+import { Star, CheckCircle, AlertCircle, XCircle } from 'lucide-react'
 import { SmartTextRenderer } from './smart-text-renderer'
 
 interface ProfessionalEvaluationProps {

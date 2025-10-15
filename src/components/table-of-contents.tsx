@@ -9,8 +9,6 @@ import {
   Mic, 
   TrendingUp, 
   Lightbulb,
-  CheckCircle,
-  AlertTriangle,
   Target
 } from "lucide-react"
 

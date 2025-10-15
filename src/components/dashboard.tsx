@@ -5,10 +5,10 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, FileText, BookOpen, TrendingUp, Clock, CheckCircle, Mail, Mic, CalendarDays, Users, ExternalLink, X } from "lucide-react"
+import { Calendar as CalendarIcon, FileText, BookOpen, Clock, CheckCircle, Mic, CalendarDays, Users, TrendingUp } from "lucide-react"
 // 首页采用与 /schedules 一致的简化月历网格，不再使用 ui/calendar 封装
 import Link from "next/link"
-import { addDays, format, isSameDay } from "date-fns"
+import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 
 // 采用 date-fns 的 zhCN 本地化
@@ -53,7 +53,6 @@ export default function Dashboard() {
     totalProjects: 0
   })
   const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([])
-  const [allInterviews, setAllInterviews] = useState<UpcomingInterview[]>([])
   const [recentExperiences, setRecentExperiences] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -104,7 +103,6 @@ export default function Dashboard() {
       }
       
       setUpcomingInterviews(data.upcomingInterviews || [])
-      setAllInterviews(data.allInterviews || [])
       setRecentExperiences(data.recentExperiences || [])
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error)
@@ -150,50 +148,252 @@ export default function Dashboard() {
 
   if (!session) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <span className="text-white font-bold text-2xl">AI</span>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        {/* Hero Section */}
+        <div className="relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl mb-8 shadow-lg">
+                <span className="text-white font-bold text-3xl">AI</span>
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+                智能面试
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> 管理平台</span>
+              </h1>
+              <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+                基于AI技术的面试全流程管理工具，让每一次面试都成为职业发展的跳板
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button asChild size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-4 h-auto shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Link href="/auth/signin">
+                    <Mic className="mr-2 h-5 w-5" />
+                    立即开始使用
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto text-lg px-8 py-4 h-auto border-2 hover:bg-gray-50">
+                  <Link href="#features">
+                    <BookOpen className="mr-2 h-5 w-5" />
+                    了解更多
+                  </Link>
+                </Button>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">AI面试助理</h1>
-            <p className="text-xl text-gray-600 mb-8">
-              基于AI的智能面试管理平台，帮助您高效管理面试进度和记录面经
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div id="features" className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">核心功能</h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                全方位覆盖面试管理各个环节，让您的求职之路更加高效
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="group p-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <CalendarIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">智能日程管理</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  可视化日历管理面试安排，支持多轮面试跟踪，智能提醒避免错过重要面试
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    多轮面试进度跟踪
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    智能面试提醒
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    面试链接管理
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="group p-8 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Mic className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">AI面试分析</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  基于AI技术的面试表现分析，实时语音识别，智能评估面试表现并提供改进建议
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    实时语音转文字
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    AI智能评分分析
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    个性化改进建议
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="group p-8 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <BookOpen className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">面经知识库</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  建立个人面试经验数据库，智能整理面经题目，支持分类标签和快速检索
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    智能题目分类
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    标签化管理
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    快速搜索检索
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="group p-8 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">进度跟踪</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  全面跟踪求职进度，可视化展示面试统计，帮助您了解求职状态和趋势
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    面试成功率分析
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    进度可视化图表
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    数据导出功能
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="group p-8 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <FileText className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">简历解析</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  智能解析简历内容，自动提取关键信息，快速生成面试准备材料
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    AI智能简历解析
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    关键信息提取
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    面试准备建议
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="group p-8 bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-pink-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">团队协作</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  支持团队共享面试资源，协作准备面试，提高整体面试成功率
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    团队资源共享
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    协作面试准备
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    经验交流平台
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-white mb-4">数据说话</h2>
+              <p className="text-xl text-blue-100">我们的平台正在帮助更多求职者实现职业目标</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="text-center">
+                <div className="text-5xl font-bold text-white mb-2">1000+</div>
+                <div className="text-blue-100 text-lg">活跃用户</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl font-bold text-white mb-2">5000+</div>
+                <div className="text-blue-100 text-lg">面试记录</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl font-bold text-white mb-2">85%</div>
+                <div className="text-blue-100 text-lg">面试成功率</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl font-bold text-white mb-2">4.9</div>
+                <div className="text-blue-100 text-lg">用户评分</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="py-20 bg-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">准备开始您的面试之旅？</h2>
+            <p className="text-xl text-gray-600 mb-12">
+              加入我们，让AI技术助力您的职业发展，让每一次面试都成为成功的垫脚石
             </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="p-6 bg-white rounded-lg shadow-sm border">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <CalendarIcon className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">面试日程管理</h3>
-              <p className="text-sm text-gray-600">智能管理面试安排，支持日历视图</p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button asChild size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-12 py-4 h-auto shadow-lg hover:shadow-xl transition-all duration-300">
+                <Link href="/auth/signin">
+                  <Mic className="mr-2 h-5 w-5" />
+                  免费开始使用
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto text-lg px-12 py-4 h-auto border-2 hover:bg-gray-50">
+                <Link href="/auth/signin">
+                  <Users className="mr-2 h-5 w-5" />
+                  查看演示
+                </Link>
+              </Button>
             </div>
             
-            <div className="p-6 bg-white rounded-lg shadow-sm border">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <FileText className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">面试记录复盘</h3>
-              <p className="text-sm text-gray-600">AI分析面试表现，生成改进建议</p>
-            </div>
-            
-            <div className="p-6 bg-white rounded-lg shadow-sm border">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <BookOpen className="w-6 h-6 text-purple-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">我的面经</h3>
-              <p className="text-sm text-gray-600">建立个人面试经验数据库</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <Button asChild size="lg" className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              <Link href="/auth/signin">🚀 一键进入Demo</Link>
-            </Button>
-            <p className="text-sm text-gray-500">
-              Demo模式无需注册，直接体验所有功能
+            <p className="text-sm text-gray-500 mt-6">
+              无需信用卡，立即注册即可使用所有功能
             </p>
           </div>
         </div>

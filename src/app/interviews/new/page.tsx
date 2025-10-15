@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Building, FileText, Plus, Trash2, Mic, Upload, Sparkles, Edit, TrendingUp, X } from "lucide-react"
+import { ArrowLeft, Calendar, Building, FileText, Plus, Mic, Upload, Sparkles, Edit, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { QuestionDisplay } from "@/components/question-display"
@@ -68,7 +68,6 @@ export default function NewInterviewPage() {
   })
   const [questions, setQuestions] = useState<Question[]>([])
   const [isEditingAiAnalysis, setIsEditingAiAnalysis] = useState(false)
-  const [isEditingFeedback, setIsEditingFeedback] = useState(false)
   const [currentStep, setCurrentStep] = useState<1 | 2>(1)
 
   useEffect(() => {
@@ -968,7 +967,7 @@ export default function NewInterviewPage() {
                       <Sparkles className="w-6 h-6 text-gray-400" />
                     </div>
                     <p className="text-sm">AI分析结果将在这里显示</p>
-                    <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击"AI智能分析"</p>
+                    <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击&ldquo;AI智能分析&rdquo;</p>
                   </div>
                 ) : isEditingAiAnalysis ? (
                   <div className="space-y-2">
@@ -1126,7 +1125,7 @@ export default function NewInterviewPage() {
                     <Sparkles className="w-6 h-6 text-gray-400" />
                   </div>
                   <p className="text-sm">AI分析结果将在这里显示</p>
-                  <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击"AI智能分析"</p>
+                  <p className="text-xs text-gray-400 mt-1">完成语音转文字后点击&ldquo;AI智能分析&rdquo;</p>
                 </div>
               ) : isEditingAiAnalysis ? (
                 <div className="space-y-2">

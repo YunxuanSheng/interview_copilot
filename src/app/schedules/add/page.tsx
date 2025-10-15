@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,7 +25,7 @@ interface JobApplication {
   notes?: string
 }
 
-export default function AddSchedulePage() {
+function AddSchedulePageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -882,5 +882,13 @@ export default function AddSchedulePage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function AddSchedulePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AddSchedulePageContent />
+    </Suspense>
   )
 }

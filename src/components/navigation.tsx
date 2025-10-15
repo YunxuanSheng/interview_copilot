@@ -22,7 +22,6 @@ import {
   LogOut,
   Menu,
   X,
-  Briefcase,
   FolderOpen
 } from "lucide-react"
 import { useState } from "react"

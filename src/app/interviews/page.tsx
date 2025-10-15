@@ -6,18 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, Calendar, Building, MessageSquare, Mic, Clock, Users, CalendarDays, ExternalLink, X } from "lucide-react"
+import { FileText, Search, Calendar, Building, MessageSquare, Mic } from "lucide-react"
 import Link from "next/link"
-import { format, addDays, isToday, isTomorrow, isYesterday } from "date-fns"
+import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-// @ts-expect-error - react-big-calendar types are not fully compatible
-import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar'
-import moment from 'moment'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
-
-// 设置moment本地化
-moment.locale('zh-cn')
-const localizer = momentLocalizer(moment)
 
 interface InterviewRecord {
   id: string
@@ -59,13 +51,10 @@ interface InterviewSchedule {
 export default function InterviewsPage() {
   const { data: session, status } = useSession()
   const [records, setRecords] = useState<InterviewRecord[]>([])
-  const [schedules, setSchedules] = useState<InterviewSchedule[]>([])
+  const [_schedules, setSchedules] = useState<InterviewSchedule[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [currentDate, setCurrentDate] = useState(new Date())
   const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
-  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
-  const [isHoveringCard, setIsHoveringCard] = useState(false)
 
   useEffect(() => {
     if (session) {
@@ -77,7 +66,7 @@ export default function InterviewsPage() {
   // 点击外部关闭hover卡片
   useEffect(() => {
     const handleClickOutside = (_event: MouseEvent) => {
-      if (hoveredEvent && !isHoveringCard) {
+      if (hoveredEvent) {
         setHoveredEvent(null)
       }
     }
@@ -86,7 +75,7 @@ export default function InterviewsPage() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [hoveredEvent, isHoveringCard])
+  }, [hoveredEvent])
 
   const fetchRecords = async () => {
     try {
@@ -124,174 +113,12 @@ export default function InterviewsPage() {
     record.transcript?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // 最近三天面试
-  const recentSchedules = schedules.filter(schedule => {
-    const scheduleDate = new Date(schedule.interviewDate)
-    const today = new Date()
-    const threeDaysAgo = addDays(today, -3)
-    const threeDaysLater = addDays(today, 3)
-    
-    return scheduleDate >= threeDaysAgo && scheduleDate <= threeDaysLater
-  }).sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime())
 
-  // 按日期分组最近三天
-  const groupedRecentSchedules = recentSchedules.reduce((acc, schedule) => {
-    const date = format(new Date(schedule.interviewDate), "yyyy-MM-dd")
-    if (!acc[date]) {
-      acc[date] = []
-    }
-    acc[date].push(schedule)
-    return acc
-  }, {} as Record<string, InterviewSchedule[]>)
 
-  // 日历事件数据
-  const calendarEvents = schedules.map(schedule => {
-    const interviewDate = new Date(schedule.interviewDate)
-    // 设置为同一天的开始和结束，避免跨天显示
-    const startOfDay = new Date(interviewDate)
-    startOfDay.setHours(9, 0, 0, 0) // 上午9点开始
-    
-    const endOfDay = new Date(interviewDate)
-    endOfDay.setHours(18, 0, 0, 0) // 下午6点结束
-    
-    return {
-      id: schedule.id,
-      title: `${schedule.company} - ${schedule.position}`,
-      start: startOfDay,
-      end: endOfDay,
-      resource: schedule
-    }
-  })
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return <Badge variant="default" className="bg-blue-100 text-blue-800">待开始</Badge>
-      case "completed":
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">已完成</Badge>
-      case "cancelled":
-        return <Badge variant="destructive" className="bg-red-100 text-red-800">已取消</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
 
-  const getDateLabel = (date: string) => {
-    const scheduleDate = new Date(date)
-    if (isToday(scheduleDate)) return "今天"
-    if (isTomorrow(scheduleDate)) return "明天"
-    if (isYesterday(scheduleDate)) return "昨天"
-    return format(scheduleDate, "MM月dd日", { locale: zhCN })
-  }
 
-  const getTimeLabel = (date: string) => {
-    return format(new Date(date), "HH:mm", { locale: zhCN })
-  }
 
-  // 检查面试是否已复盘
-  const hasReviewed = (scheduleId: string) => {
-    return records.some(record => record.scheduleId === scheduleId)
-  }
-
-  // 获取面试复盘记录
-  const getInterviewRecord = (scheduleId: string) => {
-    return records.find(record => record.scheduleId === scheduleId)
-  }
-
-  const eventStyleGetter = (event: {
-    resource?: InterviewSchedule
-  }) => {
-    const status = event.resource?.status
-    let backgroundColor = '#3174ad'
-    
-    switch (status) {
-      case "completed":
-        backgroundColor = '#28a745'
-        break
-      case "cancelled":
-        backgroundColor = '#dc3545'
-        break
-      case "scheduled":
-        backgroundColor = '#007bff'
-        break
-    }
-    
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '5px',
-        opacity: 0.8,
-        color: 'white',
-        border: '0px',
-        display: 'block'
-      }
-    }
-  }
-
-  const handleNavigate = (date: Date) => {
-    setCurrentDate(date)
-  }
-
-  // 自定义事件组件
-  const EventComponent = ({ event }: { event: {
-    id: string
-    title: string
-    start: Date
-    end: Date
-    resource: InterviewSchedule
-  } }) => {
-    const handleMouseEnter = (e: React.MouseEvent, eventData: { resource: InterviewSchedule }) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-      const cardWidth = 300
-      const cardHeight = 200
-      
-      // 计算最佳位置，避免超出视窗
-      let x = rect.left + rect.width / 2
-      let y = rect.bottom + 10  // 默认显示在下方
-      
-      // 水平位置调整
-      if (x + cardWidth / 2 > viewportWidth) {
-        x = viewportWidth - cardWidth / 2 - 10
-      }
-      if (x - cardWidth / 2 < 10) {
-        x = cardWidth / 2 + 10
-      }
-      
-      // 垂直位置调整 - 优先显示在下方，如果下方空间不够再显示在上方
-      if (y + cardHeight > viewportHeight - 10) {
-        y = rect.top - cardHeight - 10  // 显示在上方
-        if (y < 10) {
-          y = 10  // 确保不超出视窗顶部
-        }
-      }
-      
-      setHoverPosition({ x, y })
-      setHoveredEvent(eventData.resource)
-    }
-
-    const handleMouseLeave = () => {
-      // 延迟关闭，给用户时间移动到卡片上
-      setTimeout(() => {
-        if (!isHoveringCard) {
-          setHoveredEvent(null)
-        }
-      }, 100)
-    }
-
-    return (
-      <div
-        onMouseEnter={(e) => handleMouseEnter(e, { resource: event.resource })}
-        onMouseLeave={handleMouseLeave}
-        className="w-full h-full cursor-pointer"
-      >
-        <div className="text-xs truncate px-1">
-          {event.title}
-        </div>
-      </div>
-    )
-  }
 
   // 按公司分组，每个公司包含多个岗位
   const groupedByCompany = filteredRecords.reduce((acc, record) => {
