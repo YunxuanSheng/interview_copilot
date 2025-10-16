@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest) {
     console.log('📊 表记录数:', tables)
     
     // 检查面经表结构
-    let sharingsSample = []
+    let sharingsSample: any[] = []
     try {
       sharingsSample = await prisma.interviewSharing.findMany({
         take: 3,
@@ -47,7 +47,7 @@ export async function GET(_request: NextRequest) {
     }
     
     // 检查用户积分
-    let creditsSample = []
+    let creditsSample: any[] = []
     try {
       creditsSample = await prisma.userCredits.findMany({
         take: 3
