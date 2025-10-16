@@ -124,7 +124,11 @@ export async function GET(_request: NextRequest) {
       where: { id: session.user.id },
       include: {
         educations: true,
-        workExperiences: true,
+        workExperiences: {
+          orderBy: {
+            startDate: "desc"
+          }
+        },
         skills: true,
         projects: {
           include: {
@@ -152,6 +156,7 @@ export async function GET(_request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  let body: any = null
   try {
     const session = await getServerSession(authOptions) as Session | null
     
@@ -159,7 +164,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
+    body = await request.json()
     const { 
       name, 
       email, 
@@ -200,15 +205,26 @@ export async function PUT(request: NextRequest) {
             startDate: string
             endDate?: string
             description?: string
-          }) => ({
-            userId: session.user.id,
-            school: edu.school,
-            degree: edu.degree,
-            major: edu.major,
-            startDate: new Date(edu.startDate),
-            endDate: edu.endDate ? new Date(edu.endDate) : null,
-            description: edu.description
-          }))
+          }) => {
+            // 处理日期格式，支持 YYYY-MM 格式
+            const parseDate = (dateStr: string) => {
+              if (dateStr.includes('-') && dateStr.length === 7) {
+                // YYYY-MM 格式，添加 -01 使其成为有效的日期
+                return new Date(dateStr + '-01')
+              }
+              return new Date(dateStr)
+            }
+            
+            return {
+              userId: session.user.id,
+              school: edu.school,
+              degree: edu.degree,
+              major: edu.major,
+              startDate: parseDate(edu.startDate),
+              endDate: edu.endDate ? parseDate(edu.endDate) : null,
+              description: edu.description
+            }
+          })
         })
       }
 
@@ -222,15 +238,26 @@ export async function PUT(request: NextRequest) {
             endDate?: string
             description?: string
             achievements?: string
-          }) => ({
-            userId: session.user.id,
-            company: work.company,
-            position: work.position,
-            startDate: new Date(work.startDate),
-            endDate: work.endDate ? new Date(work.endDate) : null,
-            description: work.description,
-            achievements: work.achievements
-          }))
+          }) => {
+            // 处理日期格式，支持 YYYY-MM 格式
+            const parseDate = (dateStr: string) => {
+              if (dateStr.includes('-') && dateStr.length === 7) {
+                // YYYY-MM 格式，添加 -01 使其成为有效的日期
+                return new Date(dateStr + '-01')
+              }
+              return new Date(dateStr)
+            }
+            
+            return {
+              userId: session.user.id,
+              company: work.company,
+              position: work.position,
+              startDate: parseDate(work.startDate),
+              endDate: work.endDate ? parseDate(work.endDate) : null,
+              description: work.description,
+              achievements: work.achievements
+            }
+          })
         })
       }
 
@@ -255,7 +282,11 @@ export async function PUT(request: NextRequest) {
         where: { id: session.user.id },
         include: {
           educations: true,
-          workExperiences: true,
+          workExperiences: {
+            orderBy: {
+              startDate: "desc"
+            }
+          },
           skills: true,
           projects: {
             include: {
@@ -272,6 +303,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(updatedUser)
   } catch (error) {
     console.error("Update profile error:", error)
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      body: body
+    })
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -73,6 +73,17 @@ interface WorkExperience {
   endDate?: string
   description?: string
   achievements?: string
+  cards?: WorkExperienceCard[]
+}
+
+interface WorkExperienceCard {
+  id: string
+  workExperienceId: string
+  category: string
+  question: string
+  answer?: string
+  status: string
+  priority: number
 }
 
 interface Skill {
@@ -1114,6 +1125,68 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* 工作经历拆分功能 */}
+                    {!isEditing && (
+                      <div className="pt-4 border-t">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-medium text-gray-900">工作经历拆分</h5>
+                          <div className="flex items-center gap-2">
+                            {work.cards && work.cards.length > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                {work.cards.length} 个问题
+                              </Badge>
+                            )}
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/work-experiences/${work.id}`}>
+                                <FileText className="w-4 h-4 mr-1" />
+                                详细拆分
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {work.cards && work.cards.length > 0 ? (
+                          <div className="space-y-2">
+                            {work.cards.slice(0, 3).map((card) => (
+                              <div key={card.id} className="p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {card.category}
+                                  </Badge>
+                                  <Badge 
+                                    className={`text-xs ${
+                                      card.status === "completed" 
+                                        ? "bg-green-100 text-green-800" 
+                                        : card.status === "answered"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-gray-100 text-gray-800"
+                                    }`}
+                                  >
+                                    {card.status === "completed" ? "已完成" : 
+                                     card.status === "answered" ? "已回答" : "草稿"}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-700 line-clamp-2">
+                                  {card.question}
+                                </p>
+                              </div>
+                            ))}
+                            {work.cards.length > 3 && (
+                              <p className="text-xs text-gray-500 text-center">
+                                还有 {work.cards.length - 3} 个问题...
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">暂无拆分问题</p>
+                            <p className="text-xs">点击&ldquo;详细拆分&rdquo;开始AI生成问题</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
