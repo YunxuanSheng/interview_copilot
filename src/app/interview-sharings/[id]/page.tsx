@@ -332,13 +332,19 @@ export default function InterviewSharingDetailPage({ params }: { params: Promise
                       <p className="font-medium text-gray-900 mb-2">
                         {typeof question === 'string' ? question : question.text || question.question}
                       </p>
-                      {sharing.answers && sharing.answers[index] && (
+                      {sharing.answers && sharing.answers[index] ? (
                         <div className="bg-gray-50 p-3 rounded text-sm">
                           <p className="font-medium text-gray-700 mb-1">我的回答：</p>
                           <p className="text-gray-600">
                             {typeof sharing.answers[index] === 'string' 
                               ? sharing.answers[index] 
                               : sharing.answers[index].text}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-blue-50 p-3 rounded text-sm border border-blue-200">
+                          <p className="text-blue-700 text-sm">
+                            💡 作者选择不分享回答内容，保护个人隐私
                           </p>
                         </div>
                       )}

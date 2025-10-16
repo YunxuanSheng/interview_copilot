@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Building2, User, Plus, X, ArrowLeft, Mic, Shield, Eye, EyeOff, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { maskSensitiveInfo, hasSensitiveInfo, getSensitivityAdvice } from "@/lib/privacy-utils"
+import { maskSensitiveInfo, maskSensitiveInfoAsync, hasSensitiveInfo, getSensitivityAdvice, batchProcessQuestionsWithAI } from "@/lib/privacy-utils"
 
 interface InterviewRecord {
   id: string
@@ -46,10 +46,11 @@ function NewInterviewSharingPageContent() {
     tips: "",
     tags: "",
     isPublic: true,
-    // 隐私设置
+    // 简化隐私设置 - 只分享问题，不分享回答
     selectedQuestions: [] as number[],
-    enableAnswerSharing: false,
-    enablePersonalInfo: false
+    // 隐私保护设置
+    hideInterviewDate: true,
+    hideInterviewRound: true
   })
   const [newQuestion, setNewQuestion] = useState("")
   const [newAnswer, setNewAnswer] = useState("")
@@ -94,7 +95,7 @@ function NewInterviewSharingPageContent() {
     }
   }, [session, preSelectedRecordId, fetchInterviewRecords])
 
-  const handleSelectRecord = (record: InterviewRecord) => {
+  const handleSelectRecord = async (record: InterviewRecord) => {
     setSelectedRecord(record)
     setFormData(prev => ({
       ...prev,
@@ -103,19 +104,23 @@ function NewInterviewSharingPageContent() {
       interviewDate: record.interviewDate,
       questions: record.questions || [],
       answers: record.answers || [],
-      selectedQuestions: Array.from({ length: (record.questions || []).length }, (_, i) => i)
+      selectedQuestions: [] // 默认不选择任何问题，让用户主动选择
     }))
     
     // 检测敏感信息
     const allText = [
       record.company,
       record.position,
-      ...(record.questions || []).map(q => typeof q === 'string' ? q : q.text || q.question || ''),
-      ...(record.answers || []).map(a => typeof a === 'string' ? a : a.text || '')
+      ...(record.questions || []).map(q => typeof q === 'string' ? q : q.text || q.question || '')
     ].join(' ')
     
     const advice = getSensitivityAdvice(allText)
     setSensitivityAdvice(advice)
+    
+    // 自动对所有问题进行隐私处理
+    if (record.questions && record.questions.length > 0) {
+      await processQuestionsPrivacy(record.questions)
+    }
   }
 
   const _handleAddQuestion = () => {
@@ -193,32 +198,69 @@ function NewInterviewSharingPageContent() {
     }))
   }
 
-  // 获取脱敏后的内容预览
-  const getMaskedPreview = () => {
-    if (!selectedRecord) return { questions: [], answers: [] }
+  // 获取脱敏后的内容预览 - 只分享问题，不分享回答
+  // 存储已进行隐私处理的问题数据
+  const [privacyProcessedQuestions, setPrivacyProcessedQuestions] = useState<any[]>([])
+  const [maskedPreview, setMaskedPreview] = useState<{ questions: any[] }>({ questions: [] })
+
+  // 在面试记录选择时自动进行隐私处理
+  const processQuestionsPrivacy = async (questions: any[]) => {
+    if (!questions || questions.length === 0) {
+      setPrivacyProcessedQuestions([])
+      return
+    }
     
-    const selectedQuestions = formData.questions.filter((_, index) => 
-      formData.selectedQuestions.includes(index)
-    )
-    const selectedAnswers = formData.answers.filter((_, index) => 
-      formData.selectedQuestions.includes(index)
-    )
-    
-    return {
-      questions: selectedQuestions.map(q => ({
-        ...q,
-        text: formData.enablePersonalInfo 
-          ? maskSensitiveInfo(typeof q === 'string' ? q : q.text || q.question || '')
-          : maskSensitiveInfo(typeof q === 'string' ? q : q.text || q.question || '')
-      })),
-      answers: formData.enableAnswerSharing ? selectedAnswers.map(a => ({
-        ...a,
-        text: formData.enablePersonalInfo 
-          ? maskSensitiveInfo(typeof a === 'string' ? a : a.text || '')
-          : maskSensitiveInfo(typeof a === 'string' ? a : a.text || '')
-      })) : []
+    console.log('开始对面试记录的所有问题进行隐私处理，问题数量:', questions.length)
+    try {
+      // 使用批量处理API对所有问题进行隐私处理
+      const maskedQuestions = await batchProcessQuestionsWithAI(questions)
+      console.log('隐私处理完成，处理后的问题:', maskedQuestions)
+      setPrivacyProcessedQuestions(maskedQuestions)
+    } catch (error) {
+      console.error('批量脱敏处理失败:', error)
+      // 回退到逐个处理
+      try {
+        const maskedQuestions = await Promise.all(
+          questions.map(async q => {
+            const text = typeof q === 'string' ? q : q.text || q.question || ''
+            const maskedText = await maskSensitiveInfoAsync(text)
+            return {
+              ...q,
+              text: maskedText
+            }
+          })
+        )
+        setPrivacyProcessedQuestions(maskedQuestions)
+      } catch (fallbackError) {
+        console.error('回退脱敏处理也失败:', fallbackError)
+        // 最后回退到同步版本
+        const fallbackQuestions = questions.map(q => ({
+          ...q,
+          text: maskSensitiveInfo(typeof q === 'string' ? q : q.text || q.question || '')
+        }))
+        setPrivacyProcessedQuestions(fallbackQuestions)
+      }
     }
   }
+
+  const updateMaskedPreview = () => {
+    if (!selectedRecord || privacyProcessedQuestions.length === 0) {
+      setMaskedPreview({ questions: [] })
+      return
+    }
+    
+    // 从已处理的隐私数据中筛选出用户选择的问题
+    const selectedQuestions = privacyProcessedQuestions.filter((_, index) => 
+      formData.selectedQuestions.includes(index)
+    )
+    
+    setMaskedPreview({ questions: selectedQuestions })
+  }
+
+  // 当选择的问题或隐私处理的数据变化时，更新脱敏预览
+  useEffect(() => {
+    updateMaskedPreview()
+  }, [selectedRecord, formData.selectedQuestions, privacyProcessedQuestions])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -240,8 +282,20 @@ function NewInterviewSharingPageContent() {
 
     setLoading(true)
     try {
-      // 准备脱敏后的内容
-      const maskedPreview = getMaskedPreview()
+      // 使用已处理的隐私数据
+      const selectedQuestions = privacyProcessedQuestions.filter((_, index) => 
+        formData.selectedQuestions.includes(index)
+      )
+      
+      // 确保有选择的问题
+      if (selectedQuestions.length === 0) {
+        alert('请至少选择一个问题进行分享')
+        setLoading(false)
+        return
+      }
+      
+      // 使用已处理的隐私数据，无需重复处理
+      const maskedPreview = { questions: selectedQuestions }
       
       const response = await fetch('/api/interview-sharings', {
         method: 'POST',
@@ -251,14 +305,14 @@ function NewInterviewSharingPageContent() {
         body: JSON.stringify({
           ...formData,
           interviewRecordId: selectedRecord?.id,
-          interviewDate: new Date(formData.interviewDate).toISOString(),
-          // 只发送选中的问题
+          // 根据隐私设置决定是否发送日期和轮次信息
+          interviewDate: formData.hideInterviewDate ? null : new Date(formData.interviewDate).toISOString(),
+          round: formData.hideInterviewRound ? null : formData.round,
+          // 只发送选中的问题，不发送回答
           questions: maskedPreview.questions,
-          answers: maskedPreview.answers,
-          // 隐私设置
-          selectedQuestions: JSON.stringify(formData.selectedQuestions),
-          enableAnswerSharing: formData.enableAnswerSharing,
-          enablePersonalInfo: formData.enablePersonalInfo
+          answers: [], // 不分享回答内容
+          // 简化的隐私设置
+          selectedQuestions: JSON.stringify(formData.selectedQuestions)
         })
       })
 
@@ -341,7 +395,10 @@ function NewInterviewSharingPageContent() {
                       answers: [],
                       tips: "",
                       tags: "",
-                      isPublic: true
+                      isPublic: true,
+                      selectedQuestions: [],
+                      hideInterviewDate: true,
+                      hideInterviewRound: true
                     })
                     setTags([])
                   }}
@@ -357,7 +414,7 @@ function NewInterviewSharingPageContent() {
         {/* 选择现有面试记录 */}
         {interviewRecords.length > 0 && !selectedRecord && !preSelectedRecordId && (
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-3">
               <CardTitle className="flex items-center">
                 <Calendar className="w-5 h-5 mr-2" />
                 选择面试复盘记录
@@ -417,7 +474,7 @@ function NewInterviewSharingPageContent() {
         {/* 基本信息 - 只读显示 */}
         {selectedRecord && (
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-3">
               <CardTitle className="flex items-center">
                 <Building2 className="w-5 h-5 mr-2" />
                 面试信息
@@ -428,7 +485,7 @@ function NewInterviewSharingPageContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label>公司名称</Label>
                   <Input
                     value={formData.company}
@@ -436,7 +493,7 @@ function NewInterviewSharingPageContent() {
                     className="bg-gray-50"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label>职位</Label>
                   <Input
                     value={formData.position}
@@ -444,21 +501,56 @@ function NewInterviewSharingPageContent() {
                     className="bg-gray-50"
                   />
                 </div>
-                <div>
-                  <Label>面试日期</Label>
-                  <Input
-                    value={new Date(formData.interviewDate).toLocaleDateString()}
-                    readOnly
-                    className="bg-gray-50"
-                  />
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hideInterviewDate"
+                      checked={formData.hideInterviewDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hideInterviewDate: e.target.checked }))}
+                      className="rounded"
+                    />
+                    <Label htmlFor="hideInterviewDate" className="text-sm text-gray-600">
+                      隐藏面试日期（保护隐私）
+                    </Label>
+                  </div>
+                  {!formData.hideInterviewDate && (
+                    <Input
+                      value={new Date(formData.interviewDate).toLocaleDateString()}
+                      readOnly
+                      className="bg-gray-50"
+                    />
+                  )}
                 </div>
-                <div>
-                  <Label>面试轮次</Label>
-                  <Input
-                    value={`第${formData.round}轮`}
-                    readOnly
-                    className="bg-gray-50"
-                  />
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hideInterviewRound"
+                      checked={formData.hideInterviewRound}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hideInterviewRound: e.target.checked }))}
+                      className="rounded"
+                    />
+                    <Label htmlFor="hideInterviewRound" className="text-sm text-gray-600">
+                      隐藏面试轮次（保护隐私）
+                    </Label>
+                  </div>
+                  {!formData.hideInterviewRound && (
+                    <Input
+                      value={`第${formData.round}轮`}
+                      readOnly
+                      className="bg-gray-50"
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start">
+                  <Shield className="w-4 h-4 text-blue-600 mr-2 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">隐私保护提示</p>
+                    <p>系统将自动处理所有敏感信息（姓名、联系方式等），建议隐藏面试日期和轮次信息，避免被公司识别身份。</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -467,7 +559,7 @@ function NewInterviewSharingPageContent() {
 
         {/* 面经设置 */}
         <Card>
-          <CardHeader>
+          <CardHeader className="space-y-3">
             <CardTitle className="flex items-center">
               <Building2 className="w-5 h-5 mr-2" />
               面经设置
@@ -478,7 +570,7 @@ function NewInterviewSharingPageContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="difficulty">难度</Label>
                 <Select value={formData.difficulty} onValueChange={(value) => setFormData(prev => ({ ...prev, difficulty: value }))}>
                   <SelectTrigger>
@@ -491,7 +583,7 @@ function NewInterviewSharingPageContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="experience">面试体验</Label>
                 <Select value={formData.experience} onValueChange={(value) => setFormData(prev => ({ ...prev, experience: value }))}>
                   <SelectTrigger>
@@ -508,19 +600,19 @@ function NewInterviewSharingPageContent() {
           </CardContent>
         </Card>
 
-        {/* 隐私设置 */}
+        {/* 问题选择 - 简化版 */}
         {selectedRecord && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="flex items-center text-orange-800">
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader className="space-y-3">
+              <CardTitle className="flex items-center text-blue-800">
                 <Shield className="w-5 h-5 mr-2" />
-                隐私设置
+                选择分享的问题
               </CardTitle>
-              <CardDescription className="text-orange-700">
-                保护您的个人信息，选择要分享的内容
+              <CardDescription className="text-blue-700">
+                请选择要分享的面试问题（默认不选择任何问题），系统将自动进行隐私处理保护敏感信息
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               {/* 敏感信息检测提示 */}
               {sensitivityAdvice.length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -541,7 +633,7 @@ function NewInterviewSharingPageContent() {
               {/* 问题选择 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <Label className="text-base font-medium">选择要分享的问题</Label>
+                  <Label className="text-base font-medium">选择要分享的问题（请至少选择一个）</Label>
                   <div className="flex space-x-2">
                     <Button
                       type="button"
@@ -562,70 +654,49 @@ function NewInterviewSharingPageContent() {
                   </div>
                 </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {formData.questions.map((question, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        formData.selectedQuestions.includes(index)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                      onClick={() => handleQuestionToggle(index)}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedQuestions.includes(index)}
-                          onChange={() => handleQuestionToggle(index)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {typeof question === 'string' ? question : question.text || question.question}
-                          </p>
-                          {formData.answers[index] && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              包含回答内容
+                  {formData.questions.map((question, index) => {
+                    // 优先使用已处理的隐私数据，如果没有则使用原始数据
+                    const displayQuestion = privacyProcessedQuestions[index] || question
+                    return (
+                      <div
+                        key={index}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          formData.selectedQuestions.includes(index)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                        onClick={() => handleQuestionToggle(index)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={formData.selectedQuestions.includes(index)}
+                            onChange={() => handleQuestionToggle(index)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {typeof displayQuestion === 'string' ? displayQuestion : displayQuestion.text || displayQuestion.question}
                             </p>
-                          )}
+                            {/* 如果使用了隐私处理的数据，显示提示 */}
+                            {privacyProcessedQuestions[index] && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                <Shield className="w-3 h-3 inline mr-1" />
+                                已进行隐私处理
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
                   已选择 {formData.selectedQuestions.length} / {formData.questions.length} 个问题
+                  {formData.selectedQuestions.length === 0 && (
+                    <span className="text-red-500 ml-2">（请至少选择一个问题）</span>
+                  )}
                 </p>
-              </div>
-
-              {/* 分享设置 */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="enableAnswerSharing"
-                    checked={formData.enableAnswerSharing}
-                    onChange={(e) => setFormData(prev => ({ ...prev, enableAnswerSharing: e.target.checked }))}
-                    className="rounded"
-                  />
-                  <Label htmlFor="enableAnswerSharing" className="flex items-center">
-                    <Eye className="w-4 h-4 mr-2" />
-                    分享我的回答内容
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="enablePersonalInfo"
-                    checked={formData.enablePersonalInfo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, enablePersonalInfo: e.target.checked }))}
-                    className="rounded"
-                  />
-                  <Label htmlFor="enablePersonalInfo" className="flex items-center">
-                    <Shield className="w-4 h-4 mr-2" />
-                    允许分享个人信息（仍会进行脱敏处理）
-                  </Label>
-                </div>
               </div>
 
               {/* 预览按钮 */}
@@ -634,6 +705,7 @@ function NewInterviewSharingPageContent() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowPreview(!showPreview)}
+                  disabled={formData.selectedQuestions.length === 0}
                   className="flex items-center"
                 >
                   {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
@@ -647,35 +719,27 @@ function NewInterviewSharingPageContent() {
         {/* 预览效果 */}
         {showPreview && selectedRecord && (
           <Card className="border-green-200 bg-green-50">
-            <CardHeader>
+            <CardHeader className="space-y-3">
               <CardTitle className="flex items-center text-green-800">
                 <Eye className="w-5 h-5 mr-2" />
                 预览效果
               </CardTitle>
               <CardDescription className="text-green-700">
-                这是其他用户将看到的内容
+                这是其他用户将看到的内容（已自动进行隐私处理，只显示问题，不显示回答）
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {getMaskedPreview().questions.map((question, index) => (
+                {maskedPreview.questions.map((question, index) => (
                   <div key={index} className="p-3 border rounded-lg bg-white">
                     <div className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900 mb-2">
+                        <p className="font-medium text-gray-900">
                           {question.text}
                         </p>
-                        {formData.enableAnswerSharing && getMaskedPreview().answers[index] && (
-                          <div className="bg-gray-50 p-3 rounded text-sm">
-                            <p className="font-medium text-gray-700 mb-1">我的回答：</p>
-                            <p className="text-gray-600">
-                              {getMaskedPreview().answers[index].text}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -685,45 +749,6 @@ function NewInterviewSharingPageContent() {
           </Card>
         )}
 
-        {/* 面试问题 - 只读显示 */}
-        {selectedRecord && (
-          <Card>
-            <CardHeader>
-              <CardTitle>面试问题</CardTitle>
-              <CardDescription>
-                以下问题来自您选择的面试复盘记录，将作为面经内容分享
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {formData.questions.map((question, index) => (
-                  <div key={index} className="p-3 border rounded-lg bg-gray-50">
-                    <div className="flex items-start">
-                      <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3 mt-0.5">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium mb-2 text-gray-900">
-                          {typeof question === 'string' ? question : question.text || question.question}
-                        </p>
-                        {formData.answers && formData.answers[index] && (
-                          <div className="bg-white p-3 rounded border text-sm">
-                            <strong className="text-gray-700">我的回答：</strong>
-                            <p className="text-gray-600 mt-1">
-                              {typeof formData.answers[index] === 'string' 
-                                ? formData.answers[index] 
-                                : formData.answers[index].text}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* 面试建议 */}
         <Card>
@@ -778,8 +803,8 @@ function NewInterviewSharingPageContent() {
           </Link>
           <Button 
             type="submit" 
-            disabled={loading || !selectedRecord}
-            className={!selectedRecord ? 'opacity-50 cursor-not-allowed' : ''}
+            disabled={loading || !selectedRecord || formData.selectedQuestions.length === 0}
+            className={!selectedRecord || formData.selectedQuestions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}
           >
             {loading ? '发布中...' : '发布面经'}
           </Button>

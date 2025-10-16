@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -61,7 +61,7 @@ export default function EditInterviewSharingPage({ params }: { params: Promise<{
     isPublic: true,
     // 隐私设置
     selectedQuestions: [] as number[],
-    enableAnswerSharing: false,
+    enableAnswerSharing: false, // 默认不分享回答，保护隐私
     enablePersonalInfo: false
   })
   const [newQuestion, setNewQuestion] = useState("")
@@ -112,8 +112,8 @@ export default function EditInterviewSharingPage({ params }: { params: Promise<{
         const allText = [
           sharingData.company,
           sharingData.position,
-          ...(sharingData.questions || []).map(q => typeof q === 'string' ? q : q.text || q.question || ''),
-          ...(sharingData.answers || []).map(a => typeof a === 'string' ? a : a.text || '')
+          ...(sharingData.questions || []).map((q: any) => typeof q === 'string' ? q : q.text || q.question || ''),
+          ...(sharingData.answers || []).map((a: any) => typeof a === 'string' ? a : a.text || '')
         ].join(' ')
         
         const advice = getSensitivityAdvice(allText)
@@ -434,7 +434,7 @@ export default function EditInterviewSharingPage({ params }: { params: Promise<{
               隐私设置
             </CardTitle>
             <CardDescription className="text-orange-700">
-              保护您的个人信息，选择要分享的内容
+              保护您的个人信息，建议只分享面试问题，不分享回答内容
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -527,7 +527,7 @@ export default function EditInterviewSharingPage({ params }: { params: Promise<{
                 />
                 <Label htmlFor="enableAnswerSharing" className="flex items-center">
                   <Eye className="w-4 h-4 mr-2" />
-                  分享我的回答内容
+                  分享我的回答内容（不推荐，可能包含个人信息）
                 </Label>
               </div>
               <div className="flex items-center space-x-3">

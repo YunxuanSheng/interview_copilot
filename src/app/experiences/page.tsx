@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Plus, Search, Code, Cpu, MessageSquare, Star, Users, Layers } from "lucide-react"
+import { BookOpen, Plus, Search, Code, Cpu, MessageSquare, Star } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -39,7 +39,6 @@ export default function ExperiencesPage() {
   const [typeFilter, setTypeFilter] = useState("all")
   const [difficultyFilter, setDifficultyFilter] = useState("all")
   const [tagFilter, setTagFilter] = useState("all")
-  const [viewMode, setViewMode] = useState<"list" | "clusters">("list")
 
   useEffect(() => {
     if (session) {
@@ -99,15 +98,6 @@ export default function ExperiencesPage() {
     return acc
   }, {} as Record<string, PersonalExperience[]>)
 
-  // 相似问题聚类
-  const _clusteredExperiences = filteredExperiences.reduce((acc, experience) => {
-    const clusterKey = experience.clusterId || `single_${experience.id}`
-    if (!acc[clusterKey]) {
-      acc[clusterKey] = []
-    }
-    acc[clusterKey].push(experience)
-    return acc
-  }, {} as Record<string, PersonalExperience[]>)
 
   // 获取所有标签
   const allTags = Array.from(new Set(
@@ -257,24 +247,6 @@ export default function ExperiencesPage() {
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
-              <div className="flex gap-1">
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                >
-                  <Layers className="w-4 h-4 mr-1" />
-                  列表
-                </Button>
-                <Button
-                  variant={viewMode === "clusters" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("clusters")}
-                >
-                  <Users className="w-4 h-4 mr-1" />
-                  聚类
-                </Button>
-              </div>
             </div>
           </div>
         </CardContent>
@@ -355,15 +327,10 @@ export default function ExperiencesPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-2 pt-2">
-                        <Button asChild variant="outline" size="sm" className="flex-1">
+                      <div className="pt-2">
+                        <Button asChild variant="outline" size="sm" className="w-full">
                           <Link href={`/experiences/${experience.id}`}>
                             查看详情
-                          </Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm" className="flex-1">
-                          <Link href={`/experiences/${experience.id}/edit`}>
-                            编辑
                           </Link>
                         </Button>
                       </div>
@@ -410,15 +377,10 @@ export default function ExperiencesPage() {
                           </div>
                         )}
 
-                        <div className="flex gap-2 pt-2">
-                          <Button asChild variant="outline" size="sm" className="flex-1">
+                        <div className="pt-2">
+                          <Button asChild variant="outline" size="sm" className="w-full">
                             <Link href={`/experiences/${experience.id}`}>
                               查看详情
-                            </Link>
-                          </Button>
-                          <Button asChild variant="outline" size="sm" className="flex-1">
-                            <Link href={`/experiences/${experience.id}/edit`}>
-                              编辑
                             </Link>
                           </Button>
                         </div>

@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
         company,
         position,
         department,
-        interviewDate: new Date(interviewDate),
+        interviewDate: interviewDate ? new Date(interviewDate) : null,
         round: round || 1,
         difficulty,
         experience,

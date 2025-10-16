@@ -293,7 +293,7 @@ model InterviewSharing {
   company           String
   position          String
   department        String?
-  interviewDate     DateTime
+  interviewDate     DateTime?
   round             Int               @default(1)
   difficulty        String?           // 难度：easy, medium, hard
   experience        String?           // 面试体验：positive, neutral, negative
