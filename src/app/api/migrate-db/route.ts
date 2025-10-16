@@ -101,7 +101,7 @@ export async function POST(_request: NextRequest) {
           }
         })
         console.log(`✅ 为用户 ${user.email} 创建了积分记录`)
-      } catch (_error) {
+      } catch {
         console.log(`⚠️ 用户 ${user.email} 积分记录可能已存在`)
       }
     }

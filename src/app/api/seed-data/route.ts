@@ -32,7 +32,7 @@ export async function POST(_request: NextRequest) {
           }
         })
         console.log(`✅ 为用户 ${user.email} 创建了积分记录`)
-      } catch (error) {
+      } catch {
         console.log(`⚠️ 用户 ${user.email} 积分记录可能已存在`)
       }
     }
@@ -112,7 +112,7 @@ export async function POST(_request: NextRequest) {
             }
           })
           console.log(`✅ 创建了 ${sharing.company} 的面经`)
-        } catch (error) {
+        } catch {
           console.log(`⚠️ ${sharing.company} 面经可能已存在`)
         }
       }
