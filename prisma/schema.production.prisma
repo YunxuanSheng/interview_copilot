@@ -329,3 +329,4 @@ model InterviewLike {
   @@unique([userId, interviewSharingId])
   @@map("interview_likes")
 }
+
