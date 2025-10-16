@@ -78,6 +78,19 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // 为新用户创建积分记录
+    console.log("创建用户积分记录...")
+    await prisma.userCredits.create({
+      data: {
+        userId: user.id,
+        creditsBalance: 2000, // 新用户给2000积分
+        dailyUsed: 0,
+        monthlyUsed: 0,
+        lastDailyReset: new Date(),
+        lastMonthlyReset: new Date()
+      }
+    })
+
     console.log("用户创建成功:", user.id)
     return NextResponse.json(
       { 
