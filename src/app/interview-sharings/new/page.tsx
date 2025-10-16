@@ -312,7 +312,7 @@ function NewInterviewSharingPageContent() {
           questions: maskedPreview.questions,
           answers: [], // 不分享回答内容
           // 简化的隐私设置
-          selectedQuestions: JSON.stringify(formData.selectedQuestions)
+          selectedQuestions: formData.selectedQuestions
         })
       })
 

@@ -16,7 +16,7 @@ interface InterviewSharing {
   company: string
   position: string
   department?: string
-  interviewDate: string
+  interviewDate: string | null
   round: number
   difficulty?: string
   experience?: string
@@ -54,7 +54,8 @@ export default function InterviewSharingsPage() {
   const [likedSharing, setLikedSharing] = useState<Set<string>>(new Set())
 
   // 格式化日期的辅助函数，确保服务器端和客户端一致性
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '未知'
     const date = new Date(dateString)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   }
@@ -78,13 +79,32 @@ export default function InterviewSharingsPage() {
         setSharings(data.data.sharings)
         setPagination(data.data.pagination)
         setCurrentPage(page)
+        
+        // 如果有用户登录，检查每个分享的点赞状态
+        if (session?.user?.id) {
+          const likedIds = new Set<string>()
+          await Promise.all(
+            data.data.sharings.map(async (sharing: any) => {
+              try {
+                const likeResponse = await fetch(`/api/interview-sharings/${sharing.id}/like`)
+                const likeData = await likeResponse.json()
+                if (likeData.success && likeData.data.liked) {
+                  likedIds.add(sharing.id)
+                }
+              } catch (error) {
+                console.error(`检查分享 ${sharing.id} 点赞状态失败:`, error)
+              }
+            })
+          )
+          setLikedSharing(likedIds)
+        }
       }
     } catch (error) {
       console.error('获取面试记录分享失败:', error)
     } finally {
       setLoading(false)
     }
-  }, [searchCompany, searchPosition, filterDifficulty])
+  }, [searchCompany, searchPosition, filterDifficulty, session?.user?.id])
 
   const handleSearch = () => {
     setCurrentPage(1)

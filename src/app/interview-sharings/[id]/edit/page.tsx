@@ -19,7 +19,7 @@ interface InterviewSharing {
   company: string
   position: string
   department?: string
-  interviewDate: string
+  interviewDate: string | null
   round: number
   difficulty?: string
   experience?: string
@@ -89,7 +89,7 @@ export default function EditInterviewSharingPage({ params }: { params: Promise<{
           company: sharingData.company,
           position: sharingData.position,
           department: sharingData.department || "",
-          interviewDate: new Date(sharingData.interviewDate).toISOString().split('T')[0],
+          interviewDate: sharingData.interviewDate ? new Date(sharingData.interviewDate).toISOString().split('T')[0] : '',
           round: sharingData.round,
           difficulty: sharingData.difficulty || "",
           experience: sharingData.experience || "",

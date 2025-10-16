@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log('收到面试分享请求:', JSON.stringify(body, null, 2))
+    
     const {
       interviewRecordId,
       company,
@@ -129,27 +131,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('准备创建面试分享记录...')
+    const sharingData = {
+      userId: session.user.id,
+      interviewRecordId,
+      company,
+      position,
+      department,
+      interviewDate: interviewDate ? new Date(interviewDate) : null,
+      round: round || 1,
+      difficulty,
+      experience,
+      questions: JSON.stringify(questions),
+      answers: answers ? JSON.stringify(answers) : null,
+      tips,
+      tags,
+      isPublic,
+      // 隐私设置
+      selectedQuestions: selectedQuestions ? JSON.stringify(selectedQuestions) : null,
+      enableAnswerSharing,
+      enablePersonalInfo
+    }
+    console.log('分享数据:', JSON.stringify(sharingData, null, 2))
+    
     const sharing = await prisma.interviewSharing.create({
-      data: {
-        userId: session.user.id,
-        interviewRecordId,
-        company,
-        position,
-        department,
-        interviewDate: interviewDate ? new Date(interviewDate) : null,
-        round: round || 1,
-        difficulty,
-        experience,
-        questions: JSON.stringify(questions),
-        answers: answers ? JSON.stringify(answers) : null,
-        tips,
-        tags,
-        isPublic,
-        // 隐私设置
-        selectedQuestions: selectedQuestions ? JSON.stringify(selectedQuestions) : null,
-        enableAnswerSharing,
-        enablePersonalInfo
-      },
+      data: sharingData,
       include: {
         user: {
           select: {
@@ -160,6 +166,7 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+    console.log('面试分享记录创建成功:', sharing.id)
 
     return NextResponse.json({
       success: true,
