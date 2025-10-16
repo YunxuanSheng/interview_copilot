@@ -128,7 +128,7 @@ export default function SignIn() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">AI面试助理</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900">GoGoInterview</CardTitle>
           <CardDescription>
             登录您的账户以开始管理面试
           </CardDescription>

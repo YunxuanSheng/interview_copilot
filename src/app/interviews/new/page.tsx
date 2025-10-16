@@ -1043,6 +1043,15 @@ export default function NewInterviewPage() {
               </CardContent>
             </Card>
 
+            {/* Submit Button - 在窄屏幕上显示 */}
+            <div className="flex gap-4">
+              <Button onClick={handleSubmit} disabled={isLoading} className="flex-1">
+                {isLoading ? "保存中..." : "创建复盘记录"}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/interviews">取消</Link>
+              </Button>
+            </div>
           </div>
 
           {/* Questions */}
