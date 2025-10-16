@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { checkCredits, deductCredits } from '@/lib/credits'
 
-export type ServiceType = 'interview_analysis' | 'audio_transcription' | 'suggestion_generation' | 'job_parsing'
+export type ServiceType = 'interview_analysis' | 'audio_transcription' | 'suggestion_generation' | 'job_parsing' | 'resume_parsing'
 
 /**
  * 检查并记录AI服务使用

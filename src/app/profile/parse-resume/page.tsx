@@ -56,15 +56,56 @@ export default function ResumeParsePage() {
   const [resumeText, setResumeText] = useState("")
   const [parsedData, setParsedData] = useState<ParsedResume | null>(null)
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       setResumeFile(file)
       toast.success("简历文件上传成功")
+      
+      // 自动解析文件
+      await parseFile(file)
     }
   }
 
-  const handleTextUpload = () => {
+  const parseFile = async (file: File) => {
+    setIsParsing(true)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/ai/parse-resume', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          toast.error(`Credits不足: ${result.message}`)
+        } else {
+          toast.error(result.message || '解析失败，请重试')
+        }
+        setIsParsing(false)
+        return
+      }
+
+      if (result.success && result.data) {
+        setParsedData(result.data)
+        toast.success("简历解析成功！")
+      } else {
+        toast.error(result.message || '解析失败，请重试')
+      }
+    } catch (error) {
+      console.error("Parse file error:", error)
+      toast.error("解析失败，请重试")
+    } finally {
+      setIsParsing(false)
+    }
+  }
+
+  const handleTextUpload = async () => {
     if (!resumeText.trim()) {
       toast.error("请输入简历内容")
       return
@@ -73,53 +114,38 @@ export default function ResumeParsePage() {
     setIsParsing(true)
     
     try {
-      // 模拟简历解析
-      const mockParsedData: ParsedResume = {
-        personalInfo: {
-          name: "张三",
-          email: "zhangsan@example.com",
-          phone: "138-0000-0000",
-          location: "北京市",
-          summary: "3年前端开发经验，熟练掌握React、Vue等前端框架，有丰富的项目开发经验。"
+      const response = await fetch('/api/ai/parse-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        educations: [
-          {
-            school: "清华大学",
-            degree: "本科",
-            major: "计算机科学与技术",
-            startDate: "2018-09",
-            endDate: "2022-06",
-            description: "主修课程：数据结构、算法、操作系统、计算机网络等"
-          }
-        ],
-        workExperiences: [
-          {
-            company: "腾讯",
-            position: "前端开发工程师",
-            startDate: "2022-07",
-            endDate: "2024-12",
-            description: "负责公司核心产品的前端开发工作，使用React + TypeScript技术栈",
-            achievements: "主导开发了用户管理系统，提升了30%的开发效率；优化了页面加载速度，减少了50%的首屏加载时间"
-          }
-        ],
-        skills: [
-          { name: "React", level: "expert", category: "technical" },
-          { name: "TypeScript", level: "advanced", category: "technical" },
-          { name: "Vue.js", level: "advanced", category: "technical" },
-          { name: "JavaScript", level: "expert", category: "technical" },
-          { name: "Node.js", level: "intermediate", category: "technical" },
-          { name: "英语", level: "intermediate", category: "language" }
-        ]
+        body: JSON.stringify({
+          resumeText: resumeText.trim()
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          toast.error(`Credits不足: ${result.message}`)
+        } else {
+          toast.error(result.message || '解析失败，请重试')
+        }
+        setIsParsing(false)
+        return
       }
 
-      setTimeout(() => {
-        setParsedData(mockParsedData)
-        setIsParsing(false)
+      if (result.success && result.data) {
+        setParsedData(result.data)
         toast.success("简历解析成功！")
-      }, 2000)
+      } else {
+        toast.error(result.message || '解析失败，请重试')
+      }
     } catch (error) {
       console.error("Parse resume error:", error)
       toast.error("解析失败，请重试")
+    } finally {
       setIsParsing(false)
     }
   }
@@ -303,7 +329,15 @@ export default function ResumeParsePage() {
                       <FileText className="w-4 h-4 text-green-600" />
                       <span className="font-medium text-green-800">文件已上传</span>
                     </div>
-                    <p className="text-sm text-green-700">{resumeFile.name}</p>
+                    <p className="text-sm text-green-700 mb-3">{resumeFile.name}</p>
+                    <Button 
+                      onClick={() => parseFile(resumeFile)} 
+                      disabled={isParsing}
+                      className="w-full"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {isParsing ? "AI解析中..." : "AI智能解析"}
+                    </Button>
                   </div>
                 )}
               </TabsContent>

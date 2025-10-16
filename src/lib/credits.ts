@@ -1,13 +1,14 @@
 import { prisma } from '@/lib/prisma'
 
-export type ServiceType = 'interview_analysis' | 'audio_transcription' | 'suggestion_generation' | 'job_parsing'
+export type ServiceType = 'interview_analysis' | 'audio_transcription' | 'suggestion_generation' | 'job_parsing' | 'resume_parsing'
 
 // Credits消耗配置
 export const CREDITS_COST = {
   interview_analysis: 10,
   audio_transcription: 5,
   suggestion_generation: 3,
-  job_parsing: 2
+  job_parsing: 2,
+  resume_parsing: 3
 } as const
 
 // 限制配置
