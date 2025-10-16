@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       console.log('AI响应为空，返回原始问题')
       return NextResponse.json({
         success: true,
-        processedQuestions: questions.map((q, index) => ({
+        processedQuestions: questions.map((q, _index) => ({
           ...q,
           text: typeof q === 'string' ? q : q.text || q.question || ''
         }))
@@ -88,8 +88,8 @@ export async function POST(request: NextRequest) {
       
       // 如果AI返回的是数组格式
       if (Array.isArray(processedData)) {
-        const processedQuestions = processedData.map((processedQ, index) => {
-          const originalQ = questions[index]
+        const processedQuestions = processedData.map((processedQ: any, _index: number) => {
+          const originalQ = questions[_index]
           return {
             ...originalQ,
             text: typeof processedQ === 'string' ? processedQ : processedQ.text || processedQ.question || ''
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
       
       // 如果AI返回的是对象格式，包含questions字段
       if (processedData.questions && Array.isArray(processedData.questions)) {
-        const processedQuestions = processedData.questions.map((processedQ, index) => {
-          const originalQ = questions[index]
+        const processedQuestions = processedData.questions.map((processedQ: any, _index: number) => {
+          const originalQ = questions[_index]
           return {
             ...originalQ,
             text: typeof processedQ === 'string' ? processedQ : processedQ.text || processedQ.question || ''
@@ -121,12 +121,12 @@ export async function POST(request: NextRequest) {
       // 如果格式不匹配，尝试从文本中提取处理后的内容
       console.log('AI返回格式不匹配，尝试文本解析')
       const lines = result.split('\n').filter(line => line.trim())
-      const processedQuestions = questions.map((q, index) => {
+      const processedQuestions = questions.map((q, _index) => {
         // 查找对应的问题行
         const questionLine = lines.find(line => 
-          line.includes(`${index + 1}.`) || 
-          line.includes(`${index + 1}、`) ||
-          line.includes(`${index + 1}）`)
+          line.includes(`${_index + 1}.`) || 
+          line.includes(`${_index + 1}、`) ||
+          line.includes(`${_index + 1}）`)
         )
         
         if (questionLine) {
@@ -155,10 +155,10 @@ export async function POST(request: NextRequest) {
       console.log('原始响应内容:', result)
       
       // 解析失败时，尝试简单的文本替换
-      const processedQuestions = questions.map((q, index) => {
+      const processedQuestions = questions.map((q, _index) => {
         const originalText = typeof q === 'string' ? q : q.text || q.question || ''
         // 简单的姓名脱敏（作为备用方案）
-        const maskedText = originalText.replace(/[\u4e00-\u9fa5]{2,4}/g, (match) => {
+        const maskedText = originalText.replace(/[\u4e00-\u9fa5]{2,4}/g, (match: string) => {
           if (match.length === 2) return '**'
           if (match.length === 3) return '***'
           if (match.length === 4) return '****'

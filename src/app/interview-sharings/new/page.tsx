@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Building2, User, Plus, X, ArrowLeft, Mic, Shield, Eye, EyeOff, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { maskSensitiveInfo, maskSensitiveInfoAsync, hasSensitiveInfo, getSensitivityAdvice, batchProcessQuestionsWithAI } from "@/lib/privacy-utils"
+import { maskSensitiveInfo, maskSensitiveInfoAsync, getSensitivityAdvice, batchProcessQuestionsWithAI } from "@/lib/privacy-utils"
 
 interface InterviewRecord {
   id: string
@@ -67,35 +67,7 @@ function NewInterviewSharingPageContent() {
     }
   }, [searchParams])
 
-  const fetchInterviewRecords = useCallback(async () => {
-    try {
-      const response = await fetch('/api/interviews')
-      const data = await response.json()
-      
-      if (data.success) {
-        setInterviewRecords(data.data)
-        
-        // 如果有预选的面试记录ID，自动选择该记录
-        if (preSelectedRecordId) {
-          const record = data.data.find((r: InterviewRecord) => r.id === preSelectedRecordId)
-          if (record) {
-            handleSelectRecord(record)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('获取面试记录失败:', error)
-    }
-  }, [preSelectedRecordId])
-
-  // 获取用户的面试记录
-  useEffect(() => {
-    if ((session?.user as any)?.id) {
-      fetchInterviewRecords()
-    }
-  }, [session, preSelectedRecordId, fetchInterviewRecords])
-
-  const handleSelectRecord = async (record: InterviewRecord) => {
+  const handleSelectRecord = useCallback(async (record: InterviewRecord) => {
     setSelectedRecord(record)
     setFormData(prev => ({
       ...prev,
@@ -121,7 +93,36 @@ function NewInterviewSharingPageContent() {
     if (record.questions && record.questions.length > 0) {
       await processQuestionsPrivacy(record.questions)
     }
-  }
+  }, [])
+
+  const fetchInterviewRecords = useCallback(async () => {
+    try {
+      const response = await fetch('/api/interviews')
+      const data = await response.json()
+      
+      if (data.success) {
+        setInterviewRecords(data.data)
+        
+        // 如果有预选的面试记录ID，自动选择该记录
+        if (preSelectedRecordId) {
+          const record = data.data.find((r: InterviewRecord) => r.id === preSelectedRecordId)
+          if (record) {
+            handleSelectRecord(record)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('获取面试记录失败:', error)
+    }
+  }, [preSelectedRecordId, handleSelectRecord])
+
+  // 获取用户的面试记录
+  useEffect(() => {
+    if ((session?.user as any)?.id) {
+      fetchInterviewRecords()
+    }
+  }, [session, preSelectedRecordId, fetchInterviewRecords])
+
 
   const _handleAddQuestion = () => {
     if (newQuestion.trim()) {
@@ -243,7 +244,7 @@ function NewInterviewSharingPageContent() {
     }
   }
 
-  const updateMaskedPreview = () => {
+  const updateMaskedPreview = useCallback(() => {
     if (!selectedRecord || privacyProcessedQuestions.length === 0) {
       setMaskedPreview({ questions: [] })
       return
@@ -255,12 +256,12 @@ function NewInterviewSharingPageContent() {
     )
     
     setMaskedPreview({ questions: selectedQuestions })
-  }
+  }, [selectedRecord, privacyProcessedQuestions, formData.selectedQuestions])
 
   // 当选择的问题或隐私处理的数据变化时，更新脱敏预览
   useEffect(() => {
     updateMaskedPreview()
-  }, [selectedRecord, formData.selectedQuestions, privacyProcessedQuestions])
+  }, [updateMaskedPreview])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

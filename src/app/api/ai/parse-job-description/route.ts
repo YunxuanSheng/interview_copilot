@@ -59,6 +59,14 @@ export async function POST(request: NextRequest) {
         .trim();
       
       // 使用OpenAI解析内容
+      if (!openai) {
+        return NextResponse.json({
+          success: false,
+          error: 'OpenAI服务不可用',
+          parsedData: null
+        }, { status: 500 })
+      }
+      
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [

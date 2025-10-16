@@ -65,6 +65,8 @@ export default function InterviewSharingsPage() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   }
 
+  const userId = (session?.user as any)?.id
+
   const fetchSharings = useCallback(async (page = 1) => {
     setLoading(true)
     try {
@@ -86,7 +88,7 @@ export default function InterviewSharingsPage() {
         setCurrentPage(page)
         
         // 如果有用户登录，检查每个分享的点赞状态
-        if ((session?.user as any)?.id) {
+        if (userId) {
           const likedIds = new Set<string>()
           await Promise.all(
             data.data.sharings.map(async (sharing: any) => {
@@ -109,10 +111,10 @@ export default function InterviewSharingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchCompany, searchPosition, filterDifficulty, (session?.user as any)?.id])
+  }, [searchCompany, searchPosition, filterDifficulty, userId])
 
   const fetchLikedSharings = useCallback(async (page = 1) => {
-    if (!(session?.user as any)?.id) return
+    if (!userId) return
     
     setLikedLoading(true)
     try {
@@ -138,7 +140,7 @@ export default function InterviewSharingsPage() {
     } finally {
       setLikedLoading(false)
     }
-  }, [searchCompany, searchPosition, filterDifficulty, (session?.user as any)?.id])
+  }, [searchCompany, searchPosition, filterDifficulty, userId])
 
   const handleSearch = () => {
     setCurrentPage(1)
@@ -210,10 +212,10 @@ export default function InterviewSharingsPage() {
   useEffect(() => {
     if (activeTab === "all") {
       fetchSharings()
-    } else if (activeTab === "liked" && (session?.user as any)?.id) {
+    } else if (activeTab === "liked" && userId) {
       fetchLikedSharings()
     }
-  }, [activeTab, fetchSharings, fetchLikedSharings, (session?.user as any)?.id])
+  }, [activeTab, fetchSharings, fetchLikedSharings, userId])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

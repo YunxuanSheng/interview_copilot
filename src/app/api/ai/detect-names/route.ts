@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     console.error('AI姓名检测失败:', error)
     return NextResponse.json({
       success: false,
-      error: 'AI姓名检测失败: ' + error.message,
+      error: 'AI姓名检测失败: ' + (error instanceof Error ? error.message : String(error)),
       names: []
     }, { status: 500 })
   }

@@ -106,25 +106,20 @@ export async function GET(_request: NextRequest) {
             cards: true
           }
         },
-        interviewSchedules: true,
+        interviewSchedules: {
+          include: {
+            interviewRecords: {
+              include: {
+                questions: true
+              }
+            }
+          }
+        },
         personalExperiences: true,
         interviewSharings: true,
         jobApplications: true,
         aiUsageStats: true,
-        userCredits: true,
-        interviewRecords: {
-          include: {
-            questions: true,
-            schedule: {
-              select: {
-                company: true,
-                position: true,
-                interviewDate: true,
-                round: true
-              }
-            }
-          }
-        }
+        userCredits: true
       }
     })
 
@@ -150,7 +145,7 @@ export async function GET(_request: NextRequest) {
       projects: userData.projects,
       interviewSchedules: userData.interviewSchedules,
       personalExperiences: userData.personalExperiences,
-      interviewRecords: userData.interviewRecords,
+      interviewRecords: userData.interviewSchedules.flatMap(schedule => schedule.interviewRecords),
       interviewSharings: userData.interviewSharings,
       jobApplications: userData.jobApplications,
       aiUsageStats: userData.aiUsageStats,
@@ -171,3 +166,4 @@ export async function GET(_request: NextRequest) {
     )
   }
 }
+

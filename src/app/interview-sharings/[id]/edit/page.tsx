@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Building2, ArrowLeft, X, Plus, Shield, Eye, EyeOff, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { maskSensitiveInfo, hasSensitiveInfo, getSensitivityAdvice } from "@/lib/privacy-utils"
+import { maskSensitiveInfo, getSensitivityAdvice } from "@/lib/privacy-utils"
 
 interface InterviewSharing {
   id: string

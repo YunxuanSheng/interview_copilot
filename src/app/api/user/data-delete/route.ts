@@ -41,7 +41,7 @@ export async function DELETE(_request: NextRequest) {
 
       for (const record of interviewRecords) {
         await tx.interviewQuestion.deleteMany({
-          where: { interviewRecordId: record.id }
+          where: { recordId: record.id }
         })
       }
 
@@ -156,3 +156,4 @@ export async function DELETE(_request: NextRequest) {
     )
   }
 }
+

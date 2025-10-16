@@ -101,7 +101,7 @@ async function detectNamesWithAI(text: string): Promise<string[]> {
  * @param text 原始文本
  * @returns 脱敏后的文本
  */
-function maskNamesSync(text: string): string {
+function _maskNamesSync(text: string): string {
   const namesToMask: string[] = []
   
   // 使用规则检测姓名
@@ -254,12 +254,12 @@ export function hasSensitiveInfo(text: string): boolean {
 export function maskInterviewContent(
   questions: any[],
   answers: any[] = [],
-  enableAnswerSharing: boolean = false,
-  enablePersonalInfo: boolean = false
+  _enableAnswerSharing: boolean = false,
+  _enablePersonalInfo: boolean = false
 ) {
   console.warn('⚠️ 使用同步版本脱敏，无法处理姓名信息。建议使用maskInterviewContentAsync进行完整脱敏。')
   
-  const maskedQuestions = questions.map((question, index) => {
+  const maskedQuestions = questions.map((question, _index) => {
     const questionText = typeof question === 'string' ? question : question.text || question.question || ''
     
     // 只处理非姓名敏感信息
@@ -272,8 +272,8 @@ export function maskInterviewContent(
     }
   })
   
-  const maskedAnswers = enableAnswerSharing 
-    ? answers.map((answer, index) => {
+  const maskedAnswers = _enableAnswerSharing 
+    ? answers.map((answer, _index) => {
         const answerText = typeof answer === 'string' ? answer : answer.text || ''
         const maskedAnswerText = maskSensitiveInfo(answerText)
         
@@ -303,9 +303,9 @@ export async function maskInterviewContentAsync(
   questions: any[],
   answers: any[] = [],
   enableAnswerSharing: boolean = false,
-  enablePersonalInfo: boolean = false
+  _enablePersonalInfo: boolean = false
 ) {
-  const maskedQuestions = await Promise.all(questions.map(async (question, index) => {
+  const maskedQuestions = await Promise.all(questions.map(async (question, _index) => {
     const questionText = typeof question === 'string' ? question : question.text || question.question || ''
     
     // 使用AI进行完整脱敏
@@ -319,7 +319,7 @@ export async function maskInterviewContentAsync(
   }))
   
   const maskedAnswers = enableAnswerSharing 
-    ? await Promise.all(answers.map(async (answer, index) => {
+    ? await Promise.all(answers.map(async (answer, _index) => {
         const answerText = typeof answer === 'string' ? answer : answer.text || ''
         const maskedAnswerText = await maskSensitiveInfoAsync(answerText)
         
