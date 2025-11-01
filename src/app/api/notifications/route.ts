@@ -7,15 +7,16 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    const userId = (session?.user as any)?.id
-
-    if (!userId) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({
         success: false,
         error: 'Unauthorized',
         message: '请先登录'
       }, { status: 401 })
     }
+
+    const userId = session.user.id
 
     // 查询已完成但未读的转录任务
     const unreadTasks = await prisma.audioTranscriptionTask.findMany({
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
       message: `文件 "${task.audioFileName}" 转录已完成`,
       taskId: task.id,
       audioFileName: task.audioFileName,
+      transcript: task.transcript || null,
       completedAt: task.completedAt?.toISOString() || null,
       createdAt: task.createdAt.toISOString()
     }))
@@ -50,6 +52,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('获取通知失败:', error)
+    // 输出详细错误信息以便调试
+    if (error instanceof Error) {
+      console.error('错误详情:', error.message)
+      console.error('错误堆栈:', error.stack)
+    }
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
@@ -62,15 +69,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    const userId = (session?.user as any)?.id
-
-    if (!userId) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({
         success: false,
         error: 'Unauthorized',
         message: '请先登录'
       }, { status: 401 })
     }
+
+    const userId = session.user.id
 
     const body = await request.json()
     const { taskId } = body
@@ -100,6 +108,51 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('标记通知已读失败:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error',
+      message: '操作失败，请稍后重试'
+    }, { status: 500 })
+  }
+}
+
+// 清空所有通知（标记所有未读任务为已读）
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized',
+        message: '请先登录'
+      }, { status: 401 })
+    }
+
+    const userId = session.user.id
+
+    // 将所有未读的已完成任务标记为已读
+    const result = await prisma.audioTranscriptionTask.updateMany({
+      where: {
+        userId,
+        status: 'completed',
+        readAt: null, // 未读
+        completedAt: { not: null } // 已完成
+      },
+      data: {
+        readAt: new Date()
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: '已清空所有通知',
+      data: {
+        clearedCount: result.count
+      }
+    })
+  } catch (error) {
+    console.error('清空通知失败:', error)
     return NextResponse.json({
       success: false,
       error: 'Internal server error',

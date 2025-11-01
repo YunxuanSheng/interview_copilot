@@ -95,8 +95,27 @@ export default function NewInterviewPage() {
       toast.success("转录内容已加载，可以开始AI分析")
     }
     
+    // 如果有taskId，获取转录任务信息（包括scheduleId）
     if (taskIdParam) {
       setCurrentTaskId(taskIdParam)
+      
+      // 获取转录任务信息，包括关联的scheduleId
+      fetch(`/api/tasks/transcription/${taskIdParam}`)
+        .then(res => res.json())
+        .then(result => {
+          if (result.success && result.data) {
+            // 如果转录任务有关联的scheduleId，自动设置
+            if (result.data.scheduleId) {
+              setFormData(prev => ({
+                ...prev,
+                scheduleId: result.data.scheduleId
+              }))
+            }
+          }
+        })
+        .catch(error => {
+          console.error('获取转录任务信息失败:', error)
+        })
     }
   }, [searchParams])
 
@@ -130,11 +149,6 @@ export default function NewInterviewPage() {
       return false
     }
     
-    // 检查文件扩展名，对M4A格式给出特别提示
-    const fileExt = file.name.toLowerCase().split('.').pop()
-    if (fileExt === 'm4a') {
-      toast.warning("M4A格式可能因编码参数不兼容而失败。如遇错误，请使用FFmpeg转换为MP3：ffmpeg -i input.m4a -ac 1 -ar 16000 -f mp3 output.mp3", { duration: 8000 })
-    }
 
     // 清理之前的文件URL
     if (audioFile) {
@@ -224,16 +238,37 @@ export default function NewInterviewPage() {
         if (result.success && result.taskId) {
           // 任务已创建
           setCurrentTaskId(result.taskId)
-          toast.success(`任务已提交，预计需要 ${result.estimatedDuration} 分钟。完成后会收到通知提醒。`)
+          toast.success(`任务已提交，预计需要 ${result.estimatedDuration} 分钟。完成后会收到通知提醒。`, {
+            duration: 3000
+          })
           
           // 用户现在可以离开页面，任务会在后台处理
           setIsUploading(false)
+          
+          // 延迟跳转，让用户看到提示信息
+          setTimeout(() => {
+            router.push('/interviews')
+          }, 1500)
         } else {
           throw new Error(result.message || "创建任务失败")
         }
       } else {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || "转文字服务暂时不可用")
+        
+        // 检查是否是credits相关错误
+        if (response.status === 402 || errorData.error === 'Credits不足') {
+          let errorMessage = errorData.message || "Credits不足"
+          
+          // 如果有credits信息，显示更详细的错误
+          if (errorData.creditsInfo) {
+            const info = errorData.creditsInfo
+            errorMessage = `${errorMessage}\n\n当前状态：\n- Credits余额: ${info.creditsBalance || 0}\n- 今日已用: ${info.dailyUsed || 0}/${info.dailyUsed + info.dailyRemaining || 200}\n- 本月已用: ${info.monthlyUsed || 0}/${info.monthlyUsed + info.monthlyRemaining || 2000}`
+          }
+          
+          throw new Error(errorMessage)
+        }
+        
+        throw new Error(errorData.message || errorData.error || "转文字服务暂时不可用")
       }
     } catch (error) {
       console.error("Transcribe error:", error)
@@ -247,6 +282,11 @@ export default function NewInterviewPage() {
           errorMessage = "不支持的文件类型，请上传支持的音频格式"
         } else if (error.message.includes("Network")) {
           errorMessage = "网络错误，请检查网络连接后重试"
+        } else if (error.message.includes("Credits不足") || error.message.includes("credits")) {
+          // Credits错误，显示详细错误信息（包含状态信息）
+          errorMessage = error.message
+        } else if (error.message.includes("扣除credits失败")) {
+          errorMessage = "系统错误：扣除credits失败，请刷新页面重试。如果问题持续，请联系管理员。"
         } else {
           errorMessage = error.message
         }
@@ -422,28 +462,59 @@ export default function NewInterviewPage() {
     setIsLoading(true)
 
     try {
+      // 处理 scheduleId：空字符串、null 或 "skip" 时不传递或传 null
+      const requestBody = {
+        ...formData,
+        scheduleId: (formData.scheduleId && formData.scheduleId !== "" && formData.scheduleId !== "skip") 
+          ? formData.scheduleId 
+          : null,
+        taskId: currentTaskId || null,  // 传递转录任务ID，用于匹配已有记录
+        questions: questions.map(q => ({
+          questionText: q.questionText,
+          userAnswer: q.userAnswer,
+          aiEvaluation: q.aiEvaluation,
+          recommendedAnswer: q.recommendedAnswer,
+          questionType: q.questionType,
+          difficulty: q.difficulty,
+          priority: q.priority
+        }))
+      }
+
       const response = await fetch("/api/interviews", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formData,
-          questions: questions.map(q => ({
-            questionText: q.questionText,
-            userAnswer: q.userAnswer,
-            aiEvaluation: q.aiEvaluation,
-            recommendedAnswer: q.recommendedAnswer,
-            questionType: q.questionType,
-            difficulty: q.difficulty,
-            priority: q.priority
-          }))
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
-        toast.success("面试复盘记录创建成功！")
-        router.push("/interviews")
+        const result = await response.json()
+        const recordId = result.data?.id
+        const isUpdated = result.updated === true  // 是否是更新操作
+        
+        // 如果是从转录任务创建的，标记任务为已读
+        if (currentTaskId) {
+          try {
+            await fetch('/api/notifications', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ taskId: currentTaskId })
+            })
+          } catch (error) {
+            console.error('标记通知已读失败:', error)
+          }
+        }
+        
+        toast.success(isUpdated ? "面试复盘记录已更新！" : "面试复盘记录创建成功！")
+        // 跳转到详情页
+        if (recordId) {
+          router.push(`/interviews/${recordId}`)
+        } else {
+          router.push("/interviews")
+        }
       } else {
         toast.error("创建失败，请重试")
       }
@@ -852,31 +923,6 @@ export default function NewInterviewPage() {
               </div>
             </CardContent>
             </Card>
-
-            {/* Step navigation */}
-            <div className="flex gap-4">
-              <Button 
-                className="flex-1" 
-                onClick={() => {
-                  if (currentTaskId) {
-                    setShowNextStepDialog(true)
-                  } else {
-                    setCurrentStep(2)
-                  }
-                }}
-                disabled={!formData.transcript}
-              >
-                下一步
-              </Button>
-              {!formData.transcript && (
-                <div className="flex-1 text-xs text-gray-500 self-center">
-                  完成"语音转文字"后方可进入下一步
-                </div>
-              )}
-              <Button variant="outline" asChild>
-                <Link href="/interviews">取消</Link>
-              </Button>
-            </div>
         </div>
       )}
 

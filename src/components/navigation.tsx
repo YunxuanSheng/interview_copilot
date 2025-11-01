@@ -26,7 +26,8 @@ import {
   Share2,
   ListTodo,
   Settings,
-  Bell
+  Bell,
+  Trash2
 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 
@@ -56,6 +57,7 @@ interface Notification {
   message: string
   taskId: string
   audioFileName: string
+  transcript: string | null
   completedAt: string | null
   createdAt: string
 }
@@ -125,6 +127,23 @@ export default function Navigation() {
       }
     } catch (error) {
       console.error('标记通知已读失败:', error)
+    }
+  }, [])
+
+  // 清空所有通知
+  const clearAllNotifications = useCallback(async () => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'DELETE',
+      })
+      
+      if (response.ok) {
+        // 清空本地状态
+        setNotifications([])
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      console.error('清空通知失败:', error)
     }
   }, [])
 
@@ -205,9 +224,25 @@ export default function Navigation() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-80" align="end" forceMount>
-                <DropdownMenuLabel className="font-semibold">
-                  通知
-                </DropdownMenuLabel>
+                <div className="flex items-center justify-between px-2 py-1.5">
+                  <DropdownMenuLabel className="font-semibold px-0">
+                    通知
+                  </DropdownMenuLabel>
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        clearAllNotifications()
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      清空全部
+                    </Button>
+                  )}
+                </div>
                 <DropdownMenuSeparator />
                 {notifications.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">
@@ -220,9 +255,19 @@ export default function Navigation() {
                         <DropdownMenuItem
                           className="flex flex-col items-start p-4 cursor-pointer hover:bg-gray-50 rounded-none"
                           onClick={async () => {
-                            await markAsRead(notification.taskId)
                             setIsNotificationOpen(false)
+                            // 如果有转录内容，跳转到创建复盘页面并预填内容
+                            if (notification.transcript) {
+                              const params = new URLSearchParams({
+                                taskId: notification.taskId,
+                                transcript: notification.transcript
+                              })
+                              router.push(`/interviews/new?${params.toString()}`)
+                            } else {
+                              // 如果没有转录内容，跳转到面试列表页
+                              await markAsRead(notification.taskId)
                               router.push(`/interviews`)
+                            }
                           }}
                         >
                           <div className="flex items-start justify-between w-full">

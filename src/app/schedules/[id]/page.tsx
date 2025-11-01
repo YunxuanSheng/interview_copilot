@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, Building, Users, ExternalLink, Edit, Trash2, Mail } from "lucide-react"
+import { ArrowLeft, Calendar, Building, Users, ExternalLink, Edit, Trash2, Mail, MessageSquare, FileText } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -25,6 +25,24 @@ interface InterviewSchedule {
   createdAt: string
 }
 
+interface InterviewRecord {
+  id: string
+  scheduleId: string | null
+  company: string
+  position: string
+  interviewDate: string
+  round: number
+  questions: Array<{
+    id: string
+    text: string
+    question: string
+    type: string
+  }>
+  createdAt: string
+  feedback?: string
+  overallScore?: number
+}
+
 export default function ScheduleDetailPage() {
   const { data: session, status } = useSession()
   const params = useParams<{ id: string }>()
@@ -32,6 +50,8 @@ export default function ScheduleDetailPage() {
   const [schedule, setSchedule] = useState<InterviewSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [interviewRecords, setInterviewRecords] = useState<InterviewRecord[]>([])
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false)
 
   const fetchSchedule = useCallback(async () => {
     try {
@@ -68,11 +88,35 @@ export default function ScheduleDetailPage() {
     }
   }, [params.id, session?.user?.email, router])
 
+  const fetchInterviewRecords = useCallback(async () => {
+    if (!params.id) return
+    
+    setIsLoadingRecords(true)
+    try {
+      const response = await fetch('/api/interviews')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && Array.isArray(data.data)) {
+          // 过滤出当前scheduleId匹配的记录
+          const relatedRecords = data.data.filter((record: any) => 
+            record.scheduleId === params.id
+          )
+          setInterviewRecords(relatedRecords)
+        }
+      }
+    } catch (error) {
+      console.error('获取面试记录失败:', error)
+    } finally {
+      setIsLoadingRecords(false)
+    }
+  }, [params.id])
+
   useEffect(() => {
     if (session && params.id) {
       fetchSchedule()
+      fetchInterviewRecords()
     }
-  }, [session, params.id, fetchSchedule])
+  }, [session, params.id, fetchSchedule, fetchInterviewRecords])
 
   const handleDelete = async () => {
     if (!schedule || !confirm("确定要删除这个面试安排吗？")) return
@@ -328,17 +372,84 @@ export default function ScheduleDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>暂无相关面试记录</p>
-                <p className="text-sm">面试完成后可以添加记录</p>
-                <Button asChild className="mt-4">
-                  <Link href={`/interviews/new?scheduleId=${schedule.id}`}>
-                    <Mail className="w-4 h-4 mr-2" />
-                    添加面试记录
-                  </Link>
-                </Button>
-              </div>
+              {isLoadingRecords ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">加载中...</p>
+                </div>
+              ) : interviewRecords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>暂无相关面试记录</p>
+                  <p className="text-sm">面试完成后可以添加记录</p>
+                  <Button asChild className="mt-4">
+                    <Link href={`/interviews/new?scheduleId=${schedule.id}`}>
+                      <Mail className="w-4 h-4 mr-2" />
+                      添加面试记录
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {interviewRecords.map((record) => (
+                    <div
+                      key={record.id}
+                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-900">
+                              面试记录
+                            </span>
+                            {record.overallScore !== undefined && (
+                              <Badge variant="outline" className="text-xs">
+                                {record.overallScore}/10
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
+                            <div className="flex items-center gap-1">
+                              <FileText className="w-3 h-3" />
+                              <span>{record.questions.length} 个问题</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                {format(new Date(record.createdAt), "yyyy年MM月dd日 HH:mm", { locale: zhCN })}
+                              </span>
+                            </div>
+                          </div>
+                          {record.feedback && (
+                            <p className="text-sm text-gray-700 line-clamp-2 mt-2">
+                              {record.feedback}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/interviews/${record.id}`}>
+                              查看详情
+                            </Link>
+                          </Button>
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/interviews/${record.id}/edit`}>
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button asChild variant="outline" className="w-full mt-4">
+                    <Link href={`/interviews/new?scheduleId=${schedule.id}`}>
+                      <Mail className="w-4 h-4 mr-2" />
+                      添加新的面试记录
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
       </div>

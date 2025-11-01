@@ -25,9 +25,12 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    // 查询任务列表
+    // 查询任务列表，包含关联的schedule信息
     const tasks = await prisma.audioTranscriptionTask.findMany({
       where,
+      include: {
+        schedule: true
+      },
       orderBy: { createdAt: 'desc' },
       take: 100 // 限制最多100条
     })
@@ -50,6 +53,14 @@ export async function GET(request: NextRequest) {
         remainingMinutes,
         transcript: task.transcript,
         error: task.error,
+        scheduleId: task.scheduleId,
+        schedule: task.schedule ? {
+          id: task.schedule.id,
+          company: task.schedule.company,
+          position: task.schedule.position,
+          round: task.schedule.round,
+          interviewDate: task.schedule.interviewDate.toISOString()
+        } : null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         completedAt: task.completedAt?.toISOString() || null

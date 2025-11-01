@@ -50,7 +50,9 @@ function NewInterviewSharingPageContent() {
     selectedQuestions: [] as number[],
     // 隐私保护设置
     hideInterviewDate: true,
-    hideInterviewRound: true
+    hideInterviewRound: true,
+    // 匿名设置（默认匿名）
+    isAnonymous: true
   })
   const [newQuestion, setNewQuestion] = useState("")
   const [newAnswer, setNewAnswer] = useState("")
@@ -399,7 +401,8 @@ function NewInterviewSharingPageContent() {
                       isPublic: true,
                       selectedQuestions: [],
                       hideInterviewDate: true,
-                      hideInterviewRound: true
+                      hideInterviewRound: true,
+                      isAnonymous: true
                     })
                     setTags([])
                   }}
@@ -597,6 +600,23 @@ function NewInterviewSharingPageContent() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="pt-2 border-t">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isAnonymous"
+                  checked={formData.isAnonymous}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isAnonymous: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="isAnonymous" className="text-sm text-gray-700 cursor-pointer">
+                  匿名发布（默认匿名，取消勾选将显示您的用户名）
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                匿名发布时，其他用户将看不到您的用户名和头像
+              </p>
             </div>
           </CardContent>
         </Card>

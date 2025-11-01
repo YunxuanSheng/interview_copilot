@@ -120,7 +120,8 @@ export async function POST(request: NextRequest) {
       // 隐私设置
       selectedQuestions,
       enableAnswerSharing = false,
-      enablePersonalInfo = false
+      enablePersonalInfo = false,
+      isAnonymous = true // 默认匿名
     } = body
 
     // 验证必填字段
@@ -150,7 +151,8 @@ export async function POST(request: NextRequest) {
       // 隐私设置
       selectedQuestions: selectedQuestions ? JSON.stringify(selectedQuestions) : null,
       enableAnswerSharing,
-      enablePersonalInfo
+      enablePersonalInfo,
+      isAnonymous
     }
     console.log('分享数据:', JSON.stringify(sharingData, null, 2))
     

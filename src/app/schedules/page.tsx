@@ -93,6 +93,8 @@ export default function SchedulesPage() {
   const [jobApplicationPriorityFilter, setJobApplicationPriorityFilter] = useState("all")
   const [editingApplication, setEditingApplication] = useState<JobApplication | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editFormStatus, setEditFormStatus] = useState<string>("")
+  const [editFormPriority, setEditFormPriority] = useState<string>("")
 
   // 初始化日期（避免hydration mismatch）
   useEffect(() => {
@@ -207,18 +209,82 @@ export default function SchedulesPage() {
     }
   }
 
-  // 工作申请相关函数 - 暂时注释掉，等待API重构
-  const handleDeleteApplication = async (_id: string) => {
-    toast.error("功能暂时不可用，等待API重构")
+  // 工作申请相关函数
+  const handleDeleteApplication = async (id: string) => {
+    try {
+      const response = await fetch(`/api/job-applications/${id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setJobApplications(prev => prev.filter(app => app.id !== id))
+        toast.success("岗位投递删除成功")
+      } else {
+        toast.error("删除失败，请重试")
+      }
+    } catch (error) {
+      console.error("删除岗位投递时出错:", error)
+      toast.error("删除失败，请重试")
+    }
   }
 
   const handleEditApplication = (application: JobApplication) => {
     setEditingApplication(application)
+    setEditFormStatus(application.status)
+    setEditFormPriority(application.priority)
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdateApplication = async (_formData: FormData) => {
-    toast.error("功能暂时不可用，等待API重构")
+  const handleUpdateApplication = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    
+    if (!editingApplication) {
+      return
+    }
+
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      company: formData.get("company") as string,
+      position: formData.get("position") as string,
+      department: formData.get("department") as string || undefined,
+      location: formData.get("location") as string || undefined,
+      status: editFormStatus,
+      priority: editFormPriority,
+      jobUrl: formData.get("jobUrl") as string || undefined,
+      salary: formData.get("salary") as string || undefined,
+      jobDescription: formData.get("jobDescription") as string || undefined,
+      isReferral: formData.get("isReferral") === "on",
+      referrerName: formData.get("referrerName") as string || undefined,
+      notes: formData.get("notes") as string || undefined,
+    }
+
+    try {
+      const response = await fetch(`/api/job-applications/${editingApplication.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (response.ok) {
+        const updated = await response.json()
+        setJobApplications(prev => 
+          prev.map(app => app.id === editingApplication.id ? updated : app)
+        )
+        setIsEditDialogOpen(false)
+        setEditingApplication(null)
+        setEditFormStatus("")
+        setEditFormPriority("")
+        toast.success("岗位投递更新成功")
+      } else {
+        const error = await response.json()
+        toast.error(error.error || "更新失败，请重试")
+      }
+    } catch (error) {
+      console.error("更新岗位投递时出错:", error)
+      toast.error("更新失败，请重试")
+    }
   }
 
   const handleDeleteSchedule = async (scheduleId: string) => {
@@ -1125,16 +1191,16 @@ export default function SchedulesPage() {
       {/* 编辑工作申请对话框 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="space-y-2 pb-4">
             <DialogTitle>编辑岗位投递</DialogTitle>
             <DialogDescription>
               更新岗位投递信息
             </DialogDescription>
           </DialogHeader>
           {editingApplication && (
-            <form action={handleUpdateApplication} className="space-y-4">
+            <form onSubmit={handleUpdateApplication} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="company">公司名称 *</Label>
                   <Input
                     id="company"
@@ -1143,7 +1209,7 @@ export default function SchedulesPage() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="position">职位名称 *</Label>
                   <Input
                     id="position"
@@ -1155,7 +1221,7 @@ export default function SchedulesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="department">部门</Label>
                   <Input
                     id="department"
@@ -1163,7 +1229,7 @@ export default function SchedulesPage() {
                     defaultValue={editingApplication.department || ""}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="location">工作地点</Label>
                   <Input
                     id="location"
@@ -1174,9 +1240,12 @@ export default function SchedulesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="status">状态</Label>
-                  <Select name="status" defaultValue={editingApplication.status}>
+                  <Select
+                    value={editFormStatus}
+                    onValueChange={setEditFormStatus}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1189,9 +1258,12 @@ export default function SchedulesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="priority">优先级</Label>
-                  <Select name="priority" defaultValue={editingApplication.priority}>
+                  <Select
+                    value={editFormPriority}
+                    onValueChange={setEditFormPriority}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1206,7 +1278,7 @@ export default function SchedulesPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="jobUrl">职位链接</Label>
                 <Input
                   id="jobUrl"
@@ -1216,7 +1288,7 @@ export default function SchedulesPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="salary">薪资范围</Label>
                 <Input
                   id="salary"
@@ -1225,7 +1297,7 @@ export default function SchedulesPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="jobDescription">工作介绍</Label>
                 <Textarea
                   id="jobDescription"
@@ -1246,7 +1318,7 @@ export default function SchedulesPage() {
                 <Label htmlFor="isReferral">内推</Label>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="referrerName">内推人姓名</Label>
                 <Input
                   id="referrerName"
@@ -1255,7 +1327,7 @@ export default function SchedulesPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="notes">备注</Label>
                 <Textarea
                   id="notes"

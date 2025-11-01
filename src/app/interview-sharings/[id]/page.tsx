@@ -25,6 +25,7 @@ interface InterviewSharing {
   viewCount: number
   likeCount: number
   createdAt: string
+  isAnonymous?: boolean
   user: {
     id: string
     name?: string
@@ -305,7 +306,7 @@ export default function InterviewSharingDetailPage({ params }: { params: Promise
               </div>
               <div>
                 <p className="font-medium text-gray-900">
-                  {sharing.user.name || '匿名用户'}
+                  {sharing.isAnonymous ? '匿名用户' : (sharing.user.name || '匿名用户')}
                 </p>
                 <p className="text-sm text-gray-500">
                   {new Date(sharing.createdAt).toLocaleDateString()} 发布

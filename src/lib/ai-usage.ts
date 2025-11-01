@@ -31,9 +31,18 @@ export async function checkAndRecordAiUsage(userId: string, serviceType: Service
     // 扣除credits
     const deductSuccess = await deductCredits(userId, serviceType)
     if (!deductSuccess) {
+      // 重新检查credits状态，获取最新信息
+      const latestCheck = await checkCredits(userId, serviceType)
       return {
         canUse: false,
-        reason: '扣除credits失败'
+        reason: latestCheck.reason || '扣除credits失败，请稍后重试',
+        creditsInfo: {
+          creditsBalance: latestCheck.creditsBalance,
+          dailyUsed: latestCheck.dailyUsed,
+          monthlyUsed: latestCheck.monthlyUsed,
+          dailyRemaining: latestCheck.dailyRemaining,
+          monthlyRemaining: latestCheck.monthlyRemaining
+        }
       }
     }
 

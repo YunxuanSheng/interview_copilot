@@ -129,30 +129,31 @@ model Session {
 }
 
 model InterviewSchedule {
-  id               String            @id @default(cuid())
+  id               String                  @id @default(cuid())
   userId           String
   company          String
   position         String
   department       String?
   interviewDate    DateTime
   interviewLink    String?
-  round            Int               @default(1)
+  round            Int                     @default(1)
   tags             String?
   notes            String?
-  status           String            @default("scheduled")
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  status           String                  @default("scheduled")
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
   jobApplicationId String?
   interviewRecords InterviewRecord[]
-  jobApplication   JobApplication?   @relation(fields: [jobApplicationId], references: [id])
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcriptionTasks AudioTranscriptionTask[]
+  jobApplication   JobApplication?        @relation(fields: [jobApplicationId], references: [id])
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("interview_schedules")
 }
 
 model InterviewRecord {
   id            String              @id @default(cuid())
-  scheduleId    String
+  scheduleId    String?
   audioFilePath String?
   transcript    String?
   aiAnalysis    String?
@@ -161,7 +162,7 @@ model InterviewRecord {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   questions     InterviewQuestion[]
-  schedule      InterviewSchedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule      InterviewSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   sharings      InterviewSharing[]
 
   @@map("interview_records")
@@ -327,6 +328,7 @@ model InterviewSharing {
   selectedQuestions String?           // JSON格式存储用户选择的问题索引
   enableAnswerSharing Boolean         @default(false) // 是否分享答案
   enablePersonalInfo Boolean         @default(false)  // 是否分享个人信息
+  isAnonymous        Boolean         @default(true)   // 是否匿名发布（默认匿名）
   maskedContent     String?           // 脱敏后的内容
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -350,21 +352,23 @@ model InterviewLike {
 }
 
 model AudioTranscriptionTask {
-  id                String   @id @default(cuid())
+  id                String            @id @default(cuid())
   userId            String
-  status            String   @default("pending") // pending, processing, completed, failed
+  scheduleId       String?           // 关联的面试安排ID
+  status            String            @default("pending") // pending, processing, completed, failed
   audioFileName     String
-  audioFileSize     Int      // 文件大小（字节）
-  audioFilePath     String?  // 文件存储路径
-  estimatedDuration Int      // 预计处理时间（分钟）
-  actualDuration    Int?     // 实际处理时间（分钟）
-  transcript        String?  // 转录结果
-  error             String?  // 错误信息
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  completedAt       DateTime? // 完成时间
-  readAt            DateTime? // 用户已读时间，null表示未读
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audioFileSize     Int               // 文件大小（字节）
+  audioFilePath     String?           // 文件存储路径
+  estimatedDuration Int               // 预计处理时间（分钟）
+  actualDuration    Int?              // 实际处理时间（分钟）
+  transcript        String?           // 转录结果
+  error             String?           // 错误信息
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  completedAt       DateTime?         // 完成时间
+  readAt            DateTime?         // 用户已读时间，null表示未读
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule          InterviewSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
   @@map("audio_transcription_tasks")
 }

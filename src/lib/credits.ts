@@ -150,7 +150,17 @@ export async function deductCredits(userId: string, serviceType: ServiceType): P
   const serviceCost = CREDITS_COST[serviceType]
   
   try {
-    await prisma.userCredits.update({
+    // 先确保用户credits记录存在
+    const userCredits = await getUserCredits(userId)
+    
+    // 检查credits是否足够（双重检查，防止并发问题）
+    if (userCredits.creditsBalance < serviceCost) {
+      console.error(`扣除credits失败: credits不足 (余额: ${userCredits.creditsBalance}, 需要: ${serviceCost})`)
+      return false
+    }
+    
+    // 更新credits，使用原子操作
+    const result = await prisma.userCredits.update({
       where: { userId },
       data: {
         creditsBalance: {
@@ -164,9 +174,55 @@ export async function deductCredits(userId: string, serviceType: ServiceType): P
         }
       }
     })
+    
+    // 验证更新后的余额不为负数（防止并发问题）
+    if (result.creditsBalance < 0) {
+      console.error(`扣除credits失败: 更新后余额为负数 (${result.creditsBalance})，可能存在并发问题`)
+      // 回滚：恢复credits
+      try {
+        await prisma.userCredits.update({
+          where: { userId },
+          data: {
+            creditsBalance: {
+              increment: serviceCost
+            },
+            dailyUsed: {
+              decrement: serviceCost
+            },
+            monthlyUsed: {
+              decrement: serviceCost
+            }
+          }
+        })
+      } catch (rollbackError) {
+        console.error('回滚credits失败:', rollbackError)
+      }
+      return false
+    }
+    
     return true
-  } catch (error) {
+  } catch (error: any) {
+    // 如果是因为记录不存在导致的错误，尝试创建记录
+    if (error?.code === 'P2025' || error?.message?.includes('Record to update not found')) {
+      console.warn('用户credits记录不存在，尝试创建...')
+      try {
+        await getUserCredits(userId)
+        // 重新尝试扣除
+        return await deductCredits(userId, serviceType)
+      } catch (retryError) {
+        console.error('重试扣除credits失败:', retryError)
+        return false
+      }
+    }
+    
     console.error('扣除credits失败:', error)
+    console.error('错误详情:', {
+      userId,
+      serviceType,
+      serviceCost,
+      errorCode: error?.code,
+      errorMessage: error?.message
+    })
     return false
   }
 }

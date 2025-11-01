@@ -4,9 +4,20 @@ import { evaluationStandards, generateProfessionalFeedback } from '@/lib/evaluat
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { checkAndRecordAiUsage } from '@/lib/ai-usage'
+import { prisma } from '@/lib/prisma'
 import { writeFile, unlink, readFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
+
+// 腾讯云SDK导入（动态导入，避免在客户端报错）
+let tencentcloudASR: any = null
+if (typeof window === 'undefined') {
+  try {
+    tencentcloudASR = require('tencentcloud-sdk-nodejs-asr')
+  } catch (error) {
+    console.warn('⚠️ 腾讯云ASR SDK未安装，如需使用请运行: npm install tencentcloud-sdk-nodejs-asr')
+  }
+}
 
 // 使用通义千问OpenAI兼容模式
 // 注意：这里需要 DashScope API Key（格式：sk-xxx），不是 AccessKey
@@ -14,25 +25,79 @@ const apiKey = process.env.DASHSCOPE_API_KEY || process.env.OPENAI_API_KEY
 const isDashScope = !!process.env.DASHSCOPE_API_KEY
 const baseURL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 
-// 输出API配置信息（仅服务端，避免客户端暴露）
+// 腾讯云语音识别配置
+const tencentCloudSecretId = process.env.TENCENTCLOUD_SECRET_ID
+const tencentCloudSecretKey = process.env.TENCENTCLOUD_SECRET_KEY
+const useTencentCloudASR = !!(tencentCloudSecretId && tencentCloudSecretKey)
+
+// 初始化腾讯云ASR客户端
+let tencentCloudASRClient: any = null
+let tencentCloudASRError: string | null = null
+
 if (typeof window === 'undefined') {
-  if (apiKey) {
-    const apiKeyPrefix = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4)
-    console.log('🔧 AI API路由配置:')
-    console.log('  ✅ 使用服务:', isDashScope ? '通义千问 (DashScope)' : 'OpenAI兼容模式')
-    console.log('  📍 Base URL:', baseURL)
-    console.log('  🔑 API Key:', apiKeyPrefix, isDashScope ? '(DashScope)' : '(兼容)')
+  if (!useTencentCloudASR) {
+    tencentCloudASRError = '环境变量未配置：需要设置 TENCENTCLOUD_SECRET_ID 和 TENCENTCLOUD_SECRET_KEY'
+    console.warn('⚠️ 腾讯云ASR配置检查:', tencentCloudASRError)
+  } else if (!tencentcloudASR) {
+    tencentCloudASRError = '腾讯云SDK未安装：请运行 npm install tencentcloud-sdk-nodejs-asr'
+    console.warn('⚠️ 腾讯云ASR配置检查:', tencentCloudASRError)
   } else {
-    console.warn('⚠️ 未配置 API Key，AI功能将不可用')
-    console.warn('  - 请设置 DASHSCOPE_API_KEY 或 OPENAI_API_KEY 环境变量')
-  }
-  
-  // 如果提供了 AccessKey，给出提示
-  if (!apiKey && (process.env.ALIBABA_ACCESS_KEY_ID || process.env.ACCESS_KEY_ID)) {
-    console.warn('⚠️ 检测到 AccessKey，但 OpenAI 兼容模式需要 DashScope API Key')
-    console.warn('   请在百炼控制台获取 API Key: https://bailian.console.aliyun.com/')
+    try {
+      // 检查SDK结构
+      if (!tencentcloudASR.asr || !tencentcloudASR.asr.v20190614 || !tencentcloudASR.asr.v20190614.Client) {
+        console.error('⚠️ 腾讯云SDK结构检查:', {
+          hasAsr: !!tencentcloudASR.asr,
+          hasV20190614: !!tencentcloudASR.asr?.v20190614,
+          hasClient: !!tencentcloudASR.asr?.v20190614?.Client,
+          sdkKeys: Object.keys(tencentcloudASR)
+        })
+        throw new Error('SDK结构不正确，请检查 tencentcloud-sdk-nodejs-asr 包是否正确安装')
+      }
+      
+      const AsrClient = tencentcloudASR.asr.v20190614.Client
+      tencentCloudASRClient = new AsrClient({
+        credential: {
+          secretId: tencentCloudSecretId,
+          secretKey: tencentCloudSecretKey,
+        },
+        region: 'ap-shanghai', // 默认使用上海地域，可根据需要修改
+      })
+      console.log('✅ 腾讯云ASR客户端初始化成功')
+    } catch (error) {
+      tencentCloudASRError = `初始化失败: ${error instanceof Error ? error.message : String(error)}`
+      console.error('⚠️ 腾讯云ASR客户端初始化失败:', error)
+      if (error instanceof Error && error.stack) {
+        console.error('错误堆栈:', error.stack)
+      }
+    }
   }
 }
+
+  // 输出API配置信息（仅服务端，避免客户端暴露）
+  if (typeof window === 'undefined') {
+    if (useTencentCloudASR) {
+      const secretIdPrefix = tencentCloudSecretId?.substring(0, 8) + '...' + tencentCloudSecretId?.substring(tencentCloudSecretId.length - 4)
+      console.log('🔧 AI API路由配置:')
+      console.log('  ✅ 语音转文字服务: 腾讯云ASR（优先）')
+      console.log('  🔑 SecretId:', secretIdPrefix)
+    } else if (apiKey) {
+      const apiKeyPrefix = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4)
+      console.log('🔧 AI API路由配置:')
+      console.log('  ✅ 使用服务:', isDashScope ? '通义千问 (DashScope)' : 'OpenAI兼容模式')
+      console.log('  📍 Base URL:', baseURL)
+      console.log('  🔑 API Key:', apiKeyPrefix, isDashScope ? '(DashScope)' : '(兼容)')
+    } else {
+      console.warn('⚠️ 未配置 API Key，AI功能将不可用')
+      console.warn('  - 请设置 DASHSCOPE_API_KEY 或 OPENAI_API_KEY 环境变量')
+      console.warn('  - 或者设置 TENCENTCLOUD_SECRET_ID 和 TENCENTCLOUD_SECRET_KEY 使用腾讯云ASR')
+    }
+    
+    // 如果提供了 AccessKey，给出提示
+    if (!apiKey && (process.env.ALIBABA_ACCESS_KEY_ID || process.env.ACCESS_KEY_ID)) {
+      console.warn('⚠️ 检测到 AccessKey，但 OpenAI 兼容模式需要 DashScope API Key')
+      console.warn('   请在百炼控制台获取 API Key: https://bailian.console.aliyun.com/')
+    }
+  }
 
 const openai = apiKey ? new OpenAI({
   apiKey: apiKey,
@@ -62,7 +127,7 @@ export async function POST(request: NextRequest) {
       }
 
       const formData = await request.formData()
-      const result = await transcribeAudio(formData)
+      const result = await transcribeAudio(formData, userId)
       
       return result
     }
@@ -101,8 +166,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const result = await transcribeAudio(data)
-      return result
+      // JSON格式的调用，需要转换为FormData格式
+      const formData = new FormData()
+      // 注意：JSON格式的调用可能不包含文件，这里需要特殊处理
+      // 如果没有文件，应该返回错误
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid request format',
+        message: 'JSON格式的转文字请求已废弃，请使用multipart/form-data上传文件'
+      }, { status: 400 })
     } else if (action === 'generate_suggestion' || type === 'suggestion') {
       // 检查credits
       if (userId) {
@@ -210,8 +282,132 @@ async function separateSpeakers(transcript: string): Promise<string> {
   }
 }
 
-// 语音转文字 - 使用通义千问ASR (通过HTTP API)
-async function transcribeAudio(audioData: FormData) {
+// 使用腾讯云录音文件识别API
+async function transcribeWithTencentCloudASR(filePath: string, fileName: string) {
+  if (!tencentCloudASRClient) {
+    throw new Error('腾讯云ASR客户端未初始化')
+  }
+
+  console.log('🎤 [语音转文字] 使用服务: 腾讯云录音文件识别')
+  console.log('  📁 文件:', fileName)
+
+  // 读取文件并转换为base64
+  const fileContent = await readFile(filePath)
+  const base64Audio = fileContent.toString('base64')
+
+  try {
+    // 调用腾讯云录音文件识别API
+    // 文档：https://cloud.tencent.com/document/product/1093/37823
+    // SourceType: 0 = URL方式（需要公网可访问的音频文件URL）
+    // SourceType: 1 = 数据流上传（直接上传二进制数据，使用 Data 和 DataLen）
+    
+    console.log('  📤 发送请求参数（数据流上传模式）:', {
+      EngineModelType: '16k_zh',
+      ChannelNum: 1,
+      ResTextFormat: 0,
+      SourceType: 1, // 1 = 数据流上传
+      DataLen: fileContent.length,
+      DataLength: base64Audio.length,
+    })
+    
+    const response = await tencentCloudASRClient.CreateRecTask({
+      EngineModelType: '16k_zh', // 16k中文，支持中英文混合识别
+      ChannelNum: 1, // 单声道
+      ResTextFormat: 0, // 返回完整识别结果
+      SourceType: 1, // 1-数据流上传（直接上传二进制数据，使用Data和DataLen）
+      Data: base64Audio, // base64编码的音频数据
+      DataLen: fileContent.length, // 原始文件字节长度
+    })
+
+    console.log('  📥 API响应:', JSON.stringify(response, null, 2))
+
+    // 检查API响应中的错误
+    if (response?.Error) {
+      const errorMsg = response.Error.Message || response.Error.Code || JSON.stringify(response.Error)
+      console.error('  ❌ API返回错误:', errorMsg)
+      throw new Error(`腾讯云ASR API错误: ${errorMsg}`)
+    }
+
+    if (!response || !response.Data || !response.Data.TaskId) {
+      console.error('  ❌ 响应格式错误:', JSON.stringify(response, null, 2))
+      throw new Error('腾讯云ASR创建任务失败: ' + JSON.stringify(response))
+    }
+
+    const taskId = response.Data.TaskId
+    console.log('  ✅ 任务已创建，TaskId:', taskId)
+    console.log('  ⏳ 等待识别完成...')
+
+    // 轮询查询识别结果（最多等待5分钟）
+    const maxAttempts = 60 // 最多尝试60次
+    const pollInterval = 5000 // 每5秒查询一次
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      
+      const resultResponse = await tencentCloudASRClient.DescribeTaskStatus({
+        TaskId: taskId,
+      })
+
+      if (!resultResponse || !resultResponse.Data) {
+        throw new Error('查询任务状态失败')
+      }
+
+      const taskStatus = resultResponse.Data.Status
+      console.log(`  📊 任务状态 (${i + 1}/${maxAttempts}): ${taskStatus}`)
+
+      if (taskStatus === 2) {
+        // 任务成功
+        const transcript = resultResponse.Data.Result || ''
+        console.log(`✅ [语音转文字] 腾讯云ASR成功，转录文本长度: ${transcript.length} 字符`)
+        
+        // 对转录结果进行说话人分离处理
+        const processedTranscript = await separateSpeakers(transcript)
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            transcript: processedTranscript
+          },
+          message: "语音转文字完成"
+        })
+      } else if (taskStatus === 3) {
+        // 任务失败
+        const errorMsg = resultResponse.Data.ErrorMsg || '识别失败'
+        throw new Error(`腾讯云ASR识别失败: ${errorMsg}`)
+      }
+      // taskStatus === 0 (未开始) 或 1 (识别中)，继续等待
+    }
+
+    throw new Error('识别超时，请稍后重试')
+  } catch (error: any) {
+    console.error('❌ 腾讯云ASR错误详情:')
+    console.error('  错误类型:', error instanceof Error ? error.constructor.name : typeof error)
+    console.error('  错误消息:', error instanceof Error ? error.message : String(error))
+    
+    // 尝试提取API响应中的详细错误信息
+    if (error?.Error) {
+      console.error('  API错误对象:', JSON.stringify(error.Error, null, 2))
+    }
+    if (error?.response) {
+      console.error('  API响应:', JSON.stringify(error.response, null, 2))
+    }
+    if (error?.code) {
+      console.error('  错误代码:', error.code)
+    }
+    if (error?.message?.includes('Url')) {
+      console.error('  ⚠️ 检测到Url参数错误，可能是SourceType设置问题')
+      console.error('  当前SourceType: 0 (二进制数据流模式)')
+      console.error('  如果API要求Url参数，可能需要切换到SourceType: 1')
+    }
+    
+    // 抛出更友好的错误信息
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`腾讯云ASR错误: ${errorMessage}`)
+  }
+}
+
+// 语音转文字 - 仅使用腾讯云ASR（异步任务模式）
+async function transcribeAudio(audioData: FormData, userId?: string) {
   let tempFilePath: string | null = null
   try {
     const audioFile = audioData.get('audio') as File
@@ -223,8 +419,37 @@ async function transcribeAudio(audioData: FormData) {
       })
     }
 
-    if (!apiKey) {
-      throw new Error('DASHSCOPE_API_KEY 环境变量未设置')
+    // 检查腾讯云ASR是否已配置
+    if (!tencentCloudASRClient) {
+      const errorMsg = tencentCloudASRError || 
+        '腾讯云ASR服务未配置。请检查：\n' +
+        '1. 是否设置了 TENCENTCLOUD_SECRET_ID 和 TENCENTCLOUD_SECRET_KEY 环境变量\n' +
+        '2. 是否安装了 tencentcloud-sdk-nodejs-asr 包 (npm install tencentcloud-sdk-nodejs-asr)\n' +
+        '3. 是否重启了服务器'
+      throw new Error(errorMsg)
+    }
+
+    // 计算预计处理时间（根据文件大小估算，约1MB/分钟）
+    const estimatedDuration = Math.max(1, Math.ceil(audioFile.size / 1024 / 1024))
+
+    // 读取scheduleId（如果存在）
+    const scheduleId = audioData.get('scheduleId') as string | null
+    const finalScheduleId = scheduleId && scheduleId !== '' && scheduleId !== 'skip' ? scheduleId : null
+
+    // 如果有userId，创建数据库任务记录
+    let taskId: string | null = null
+    if (userId) {
+      const task = await prisma.audioTranscriptionTask.create({
+        data: {
+          userId,
+          scheduleId: finalScheduleId,
+          status: 'pending',
+          audioFileName: audioFile.name,
+          audioFileSize: audioFile.size,
+          estimatedDuration,
+        }
+      })
+      taskId = task.id
     }
 
     // 将文件保存到临时目录
@@ -233,104 +458,42 @@ async function transcribeAudio(audioData: FormData) {
     tempFilePath = join(tempDir, `audio_${Date.now()}_${audioFile.name}`)
     await writeFile(tempFilePath, Buffer.from(audioBuffer))
 
-    // 读取文件内容，准备转换为base64
-    const fileContent = await readFile(tempFilePath)
-    const base64Audio = fileContent.toString('base64')
-    
-    // 使用通义千问ASR API进行语音转文字
-    // API端点：https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
-    const asrApiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation'
-    console.log('🎤 [语音转文字] 使用服务: 通义千问 ASR')
-    console.log('  📍 端点:', asrApiUrl)
-    console.log('  🤖 模型: qwen3-asr-flash')
-    const response = await fetch(asrApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen3-asr-flash',
-        input: {
-          messages: [
-            {
-              role: 'system',
-              content: [
-                { text: '' } // 可以在这里添加上下文增强
-              ]
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  audio: `data:${audioFile.type || 'audio/wav'};base64,${base64Audio}`
-                }
-              ]
-            }
-          ]
-        },
-        parameters: {
-          result_format: 'message',
-          asr_options: {
-            enable_itn: true // 启用逆文本规范化
+    // 立即返回任务ID，让前端可以开始轮询
+    if (taskId) {
+      // 在后台异步处理识别任务（不阻塞响应）
+      processTranscriptionTask(taskId, tempFilePath, audioFile.name).catch(error => {
+        console.error('后台处理识别任务失败:', error)
+        // 更新任务状态为失败
+        prisma.audioTranscriptionTask.update({
+          where: { id: taskId! },
+          data: {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
           }
-        }
+        }).catch((updateError: unknown) => {
+          console.error('更新任务状态失败:', updateError)
+        })
       })
-    })
 
-    // 清理临时文件
-    if (tempFilePath) {
-      try {
-        await unlink(tempFilePath)
-      } catch (cleanupError) {
-        console.warn('清理临时文件失败:', cleanupError)
+      return NextResponse.json({
+        success: true,
+        taskId,
+        estimatedDuration,
+        message: '任务已创建，正在处理中...'
+      })
+    } else {
+      // 如果没有userId，同步处理（向后兼容）
+      const result = await transcribeWithTencentCloudASR(tempFilePath, audioFile.name)
+      // 清理临时文件
+      if (tempFilePath) {
+        try {
+          await unlink(tempFilePath)
+        } catch (cleanupError) {
+          console.warn('清理临时文件失败:', cleanupError)
+        }
       }
-      tempFilePath = null
+      return result
     }
-
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('通义千问ASR API错误:', response.status, errorData)
-      throw new Error(`通义千问ASR API错误: ${response.status} ${response.statusText}`)
-    }
-
-    const result = await response.json()
-
-    if (result.status_code !== 200) {
-      throw new Error(`通义千问ASR API错误: ${result.message || '未知错误'}`)
-    }
-
-    // 提取转录文本
-    // 根据DashScope API响应格式，content可能是字符串或数组
-    const message = result.output?.choices?.[0]?.message
-    let transcript = ''
-    
-    if (typeof message?.content === 'string') {
-      transcript = message.content
-    } else if (Array.isArray(message?.content)) {
-      // 如果是数组，提取文本内容
-      const textContent = message.content.find((item: any) => item.type === 'text' || item.text)
-      transcript = textContent?.text || textContent?.content || ''
-    } else if (message?.content) {
-      // 尝试直接使用content
-      transcript = String(message.content)
-    }
-    
-    if (!transcript) {
-      console.error('未能提取转录文本，完整响应:', JSON.stringify(result, null, 2))
-      throw new Error('未能获取转录结果')
-    }
-
-    // 对转录结果进行说话人分离处理
-    const processedTranscript = await separateSpeakers(transcript)
-    
-    return NextResponse.json({
-      success: true,
-      data: {
-        transcript: processedTranscript
-      },
-      message: "语音转文字完成"
-    })
   } catch (error) {
     // 确保清理临时文件
     if (tempFilePath) {
@@ -341,17 +504,73 @@ async function transcribeAudio(audioData: FormData) {
       }
     }
 
-    console.error('Transcription error:', error)
-    // 如果API调用失败，返回模拟数据
-    const mockTranscript = "面试官：你好，请先自我介绍一下。\n候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架开发过多个项目。我毕业于计算机科学专业，在校期间就接触了前端开发，毕业后一直专注于前端技术栈的学习和实践。\n面试官：能说说你对React的理解吗？\n候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能，支持组件化开发。React的核心概念包括组件、状态、属性、生命周期等。我在项目中主要使用函数式组件和Hooks，比如useState、useEffect、useContext等。\n面试官：ES5和ES6有什么区别？\n候选人：ES6相比ES5有很多新特性，比如let和const声明变量，箭头函数，模板字符串，解构赋值，类语法，模块化等。这些新特性让JavaScript更加强大和易用。\n面试官：请实现一个快速排序算法。\n候选人：快速排序是一种分治算法，选择一个基准元素，将数组分为两部分，左边小于基准，右边大于基准，然后递归排序两部分。"
+    console.error('语音转文字错误:', error)
     
+    // 返回错误响应，不再返回模拟数据
+    const errorMessage = error instanceof Error ? error.message : '语音转文字失败'
     return NextResponse.json({
-      success: true,
-      data: {
-        transcript: mockTranscript
-      },
-      message: "语音转文字完成(使用模拟数据)"
+      success: false,
+      error: 'Transcription failed',
+      message: errorMessage
+    }, { status: 500 })
+  }
+}
+
+// 后台异步处理识别任务
+async function processTranscriptionTask(taskId: string, filePath: string, fileName: string) {
+  try {
+    // 更新任务状态为处理中
+    await prisma.audioTranscriptionTask.update({
+      where: { id: taskId },
+      data: { status: 'processing' }
     })
+
+    // 调用腾讯云ASR进行识别
+    const result = await transcribeWithTencentCloudASR(filePath, fileName)
+    
+    // 解析结果
+    const resultData = await result.json()
+    const transcript = resultData.data?.transcript || ''
+
+    // 更新任务状态为完成
+    await prisma.audioTranscriptionTask.update({
+      where: { id: taskId },
+      data: {
+        status: 'completed',
+        transcript,
+        completedAt: new Date(),
+        actualDuration: 0 // TODO: 计算实际耗时
+      }
+    })
+
+    // 清理临时文件
+    try {
+      await unlink(filePath)
+    } catch (cleanupError) {
+      console.warn('清理临时文件失败:', cleanupError)
+    }
+
+    console.log(`✅ 任务 ${taskId} 处理完成`)
+  } catch (error) {
+    console.error(`❌ 任务 ${taskId} 处理失败:`, error)
+    
+    // 更新任务状态为失败
+    await prisma.audioTranscriptionTask.update({
+      where: { id: taskId },
+      data: {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }).catch((updateError: unknown) => {
+      console.error('更新任务状态失败:', updateError)
+    })
+
+    // 清理临时文件
+    try {
+      await unlink(filePath)
+    } catch (cleanupError) {
+      console.warn('清理临时文件失败:', cleanupError)
+    }
   }
 }
 

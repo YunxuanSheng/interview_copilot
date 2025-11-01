@@ -58,6 +58,14 @@ interface TranscriptionTask {
   actualDuration: number | null
   transcript: string | null
   error: string | null
+  scheduleId?: string | null
+  schedule?: {
+    id: string
+    company: string
+    position: string
+    round: number
+    interviewDate: string
+  } | null
   createdAt: string
   completedAt: string | null
 }
@@ -78,6 +86,7 @@ interface CombinedItem {
   createdAt: string
   completedAt?: string | null
   taskId?: string
+  matchedRecordId?: string
 }
 
 export default function InterviewsPage() {
@@ -246,43 +255,56 @@ export default function InterviewsPage() {
     tasks.forEach(task => {
       // 尝试通过transcript匹配到已有记录
       let matchedRecord: InterviewRecord | null = null
-      if (task.transcript) {
+      if (task.transcript && task.transcript.trim()) {
         matchedRecord = records.find(record => {
           // 精确匹配
-          if (record.transcript === task.transcript) return true
+          if (record.transcript && record.transcript.trim() && record.transcript === task.transcript) return true
           // 或者transcript包含task的transcript的关键部分（去掉空格和换行比较）
           const recordClean = record.transcript?.replace(/\s+/g, '')
-          const taskClean = task.transcript.replace(/\s+/g, '')
-          if (recordClean && taskClean) {
-            // 如果相似度超过80%（取较短的一方作为基准）
+          const taskClean = task.transcript?.replace(/\s+/g, '')
+          if (recordClean && taskClean && recordClean.length > 50 && taskClean.length > 50) {
+            // 如果相似度超过70%（取较短的一方作为基准）
             const minLength = Math.min(recordClean.length, taskClean.length)
-            const maxLength = Math.max(recordClean.length, taskClean.length)
-            if (minLength > 50 && maxLength > 0) {
-              // 简单的相似度检查：检查是否有大量重叠
-              const overlapLength = Math.min(
-                recordClean.substring(0, minLength) === taskClean.substring(0, minLength) ? minLength : 0,
-                recordClean.substring(recordClean.length - minLength) === taskClean.substring(taskClean.length - minLength) ? minLength : 0
-              )
-              if (overlapLength / minLength > 0.7) return true
-            }
+            // 检查前100个字符和后100个字符是否匹配
+            const prefixMatch = recordClean.substring(0, Math.min(100, minLength)) === taskClean.substring(0, Math.min(100, minLength))
+            const suffixMatch = recordClean.substring(Math.max(0, recordClean.length - Math.min(100, minLength))) === taskClean.substring(Math.max(0, taskClean.length - Math.min(100, minLength)))
+            // 如果前缀或后缀匹配，或者整体长度相近（差异小于20%）
+            const lengthDiff = Math.abs(recordClean.length - taskClean.length) / Math.max(recordClean.length, taskClean.length)
+            if (prefixMatch || suffixMatch || lengthDiff < 0.2) return true
           }
           return false
         }) || null
       }
       
-      // 如果没有匹配的记录，或者匹配的记录还没有transcript，则添加任务项
-      // 但已经创建了记录的转录任务不应该再显示（避免重复）
-      if (!matchedRecord || !matchedRecord.transcript) {
+      // 如果匹配到已有复盘记录（有aiAnalysis），则不再显示转录任务
+      // 只显示没有匹配记录，或者匹配记录还没有创建复盘（没有aiAnalysis）的转录任务
+      if (matchedRecord && matchedRecord.aiAnalysis) {
+        // 已经创建了复盘，不显示转录任务
+        return
+      }
+      
+      // 如果没有匹配的记录，或者匹配的记录还没有创建复盘（没有aiAnalysis），则添加任务项
+      if (!matchedRecord || !matchedRecord.aiAnalysis) {
         const status: '语音转换中' | '转换完成' | '复盘完成' | '转换失败' = 
           task.status === 'failed' ? '转换失败' :
           task.status === 'completed' ? '转换完成' :
           task.status === 'processing' ? '语音转换中' :
           '语音转换中'
         
-        // 如果匹配到记录，使用记录的公司和职位信息
-        // 否则尝试通过创建时间找到相近的schedule（在同一分钟内创建的）
+        // 优先使用任务关联的schedule信息，其次使用匹配的记录信息，最后尝试通过创建时间匹配
         let matchedSchedule: InterviewSchedule | null = null
-        if (!matchedRecord) {
+        
+        // 如果任务有scheduleId，直接使用关联的schedule
+        if (task.scheduleId && task.schedule) {
+          matchedSchedule = {
+            id: task.schedule.id,
+            company: task.schedule.company,
+            position: task.schedule.position,
+            round: task.schedule.round,
+            interviewDate: task.schedule.interviewDate
+          } as InterviewSchedule
+        } else if (!matchedRecord) {
+          // 如果没有匹配的记录且任务没有关联的schedule，尝试通过创建时间找到相近的schedule
           matchedSchedule = schedules.find(schedule => {
             const scheduleTime = new Date(schedule.createdAt).getTime()
             const taskTime = new Date(task.createdAt).getTime()
@@ -301,11 +323,13 @@ export default function InterviewsPage() {
           createdAt: task.createdAt,
           completedAt: task.completedAt,
           taskId: task.id,
-          // 优先使用记录的信息，其次使用schedule的信息
-          company: matchedRecord?.company || matchedSchedule?.company,
-          position: matchedRecord?.position || matchedSchedule?.position,
-          round: matchedRecord?.round || matchedSchedule?.round,
-          interviewDate: matchedRecord?.interviewDate || matchedSchedule?.interviewDate
+          // 如果匹配到记录但没有aiAnalysis，添加记录ID以便后续链接
+          matchedRecordId: matchedRecord?.id,
+          // 优先使用记录的信息，其次使用任务关联的schedule信息，最后使用时间匹配的schedule
+          company: matchedRecord?.company || matchedSchedule?.company || task.schedule?.company,
+          position: matchedRecord?.position || matchedSchedule?.position || task.schedule?.position,
+          round: matchedRecord?.round || matchedSchedule?.round || task.schedule?.round,
+          interviewDate: matchedRecord?.interviewDate || matchedSchedule?.interviewDate || task.schedule?.interviewDate
         })
       }
     })
@@ -666,7 +690,7 @@ export default function InterviewsPage() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">公司/文件</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">职位</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">职位/轮次</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">状态</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">创建时间</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">操作</th>
@@ -710,10 +734,16 @@ export default function InterviewsPage() {
                     return (
                       <tr key={item.id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4">
-                          <div className="font-medium text-gray-900">
-                            {item.company || item.audioFileName || '-'}
-                          </div>
-                          {item.type === 'task' && item.audioFileName && !item.company && (
+                          {item.company ? (
+                            <div className="font-medium text-gray-900">
+                              {item.company}
+                            </div>
+                          ) : (
+                            <div className="font-medium text-gray-900">
+                              {item.audioFileName || '-'}
+                            </div>
+                          )}
+                          {item.type === 'task' && item.audioFileName && item.company && (
                             <div className="text-xs text-gray-500 mt-1">
                               录音文件：{item.audioFileName}
                             </div>
@@ -744,18 +774,28 @@ export default function InterviewsPage() {
                           <div className="flex items-center gap-2">
                             {item.type === 'record' ? (
                               <>
-                                <Button asChild variant="outline" size="sm">
-                                  <Link href={`/interviews/${item.id}`}>
-                                    查看
-                                  </Link>
-                                </Button>
-                                {!item.aiAnalysis && item.transcript && (
-                                  <Button asChild variant="default" size="sm">
-                                    <Link href={`/interviews/new?transcript=${encodeURIComponent(item.transcript || '')}`}>
-                                      <Sparkles className="w-3 h-3 mr-1" />
-                                      去做AI分析
+                                {item.aiAnalysis ? (
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/interviews/${item.id}`}>
+                                      查看复盘
                                     </Link>
                                   </Button>
+                                ) : (
+                                  <>
+                                    <Button asChild variant="outline" size="sm">
+                                      <Link href={`/interviews/${item.id}`}>
+                                        查看
+                                      </Link>
+                                    </Button>
+                                    {item.transcript && (
+                                      <Button asChild variant="default" size="sm">
+                                        <Link href={`/interviews/new?transcript=${encodeURIComponent(item.transcript || '')}`}>
+                                          <Sparkles className="w-3 h-3 mr-1" />
+                                          去做AI分析
+                                        </Link>
+                                      </Button>
+                                    )}
+                                  </>
                                 )}
                                 <Button 
                                   variant="outline" 
@@ -771,7 +811,14 @@ export default function InterviewsPage() {
                               </>
                             ) : (
                               <>
-                                {item.status === '转换完成' && item.transcript ? (
+                                {/* 如果转录任务匹配到了已有复盘记录，显示查看按钮 */}
+                                {item.matchedRecordId ? (
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/interviews/${item.matchedRecordId}`}>
+                                      查看复盘
+                                    </Link>
+                                  </Button>
+                                ) : item.status === '转换完成' && item.transcript ? (
                                   <>
                                     <Button asChild variant="default" size="sm">
                                       <Link href={`/interviews/new?transcript=${encodeURIComponent(item.transcript)}&taskId=${item.taskId}`}>

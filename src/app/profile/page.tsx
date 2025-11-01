@@ -393,10 +393,10 @@ export default function ProfilePage() {
                     {profile?.name || session.user?.name || "用户"}
                   </h3>
                   <p className="text-gray-600">{profile?.email || session.user?.email}</p>
-                  <Button variant="outline" size="sm" className="mt-2">
+                  {/* <Button variant="outline" size="sm" className="mt-2">
                     <Upload className="w-4 h-4 mr-2" />
                     更换头像
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
 

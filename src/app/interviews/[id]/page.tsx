@@ -32,7 +32,7 @@ import { toast } from "sonner"
 
 interface InterviewRecord {
   id: string
-  scheduleId: string
+  scheduleId: string | null
   audioFilePath?: string
   transcript?: string
   aiAnalysis?: string
@@ -45,7 +45,7 @@ interface InterviewRecord {
     position: string
     interviewDate: string
     round: number
-  }
+  } | null
   questions: {
     id: string
     questionText: string
@@ -136,17 +136,39 @@ export default function InterviewDetailPage() {
       // 解析AI分析数据
       if (data.aiAnalysis) {
         try {
-          const analysis = JSON.parse(data.aiAnalysis)
-          setAiAnalysis(analysis)
-    } catch {
-      console.error("Failed to parse AI analysis:")
-          // 如果解析失败，设置默认的AI分析结构
-          setAiAnalysis({
-            overallScore: 0,
-            strengths: [],
-            weaknesses: [],
-            suggestions: []
-          })
+          let analysis: AIAnalysis | null = null
+          
+          if (typeof data.aiAnalysis === 'string') {
+            // 尝试解析为 JSON
+            try {
+              analysis = JSON.parse(data.aiAnalysis)
+              // 验证是否是有效的 AIAnalysis 对象（有 strengths/weaknesses/suggestions 等字段）
+              if (analysis && typeof analysis === 'object' && 
+                  ('strengths' in analysis || 'weaknesses' in analysis || 'suggestions' in analysis || 'questionAnalysis' in analysis)) {
+                setAiAnalysis(analysis)
+              } else {
+                // 不是有效的 JSON 对象，可能是 Markdown 文本，设置为 null 使用 SmartTextRenderer 显示
+                setAiAnalysis(null)
+              }
+            } catch (jsonError) {
+              // JSON 解析失败，说明是 Markdown 文本格式，设置为 null 使用 SmartTextRenderer 显示
+              setAiAnalysis(null)
+            }
+          } else if (typeof data.aiAnalysis === 'object') {
+            // 直接是对象
+            analysis = data.aiAnalysis
+            if (analysis && ('strengths' in analysis || 'weaknesses' in analysis || 'suggestions' in analysis || 'questionAnalysis' in analysis)) {
+              setAiAnalysis(analysis)
+            } else {
+              setAiAnalysis(null)
+            }
+          } else {
+            setAiAnalysis(null)
+          }
+        } catch (error) {
+          console.error("Failed to parse AI analysis:", error, data.aiAnalysis)
+          // 解析失败，设置为 null，使用 SmartTextRenderer 显示原始文本
+          setAiAnalysis(null)
         }
       }
     } catch (error) {
@@ -211,7 +233,7 @@ export default function InterviewDetailPage() {
     try {
       setImportingIds(prev => [...prev, q.id])
       const payload = {
-        company: record.schedule.company || "",
+        company: record.schedule?.company || "未知公司",
         questionType: q.questionType || "technical",
         questionText: q.questionText,
         answerText: q.userAnswer || "",
@@ -236,7 +258,7 @@ export default function InterviewDetailPage() {
   const importAllExperiences = useCallback(async () => {
     if (!record || !record.questions?.length) return
     try {
-      const company = record.schedule.company || ""
+      const company = record.schedule?.company || "未知公司"
       const tasks = record.questions.map(q => {
         const payload = {
           company,
@@ -327,11 +349,23 @@ export default function InterviewDetailPage() {
       {/* 标题区域 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {record.schedule.company}
-          </h1>
-          <p className="text-xl text-gray-600 mb-1">{record.schedule.position}</p>
-          <p className="text-sm text-gray-500">第{record.schedule.round}轮面试</p>
+          {record.schedule ? (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {record.schedule.company}
+              </h1>
+              <p className="text-xl text-gray-600 mb-1">{record.schedule.position}</p>
+              <p className="text-sm text-gray-500">第{record.schedule.round}轮面试</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                面试复盘
+              </h1>
+              <p className="text-xl text-gray-600 mb-1">未关联面试安排</p>
+              <p className="text-sm text-gray-500">直接创建的复盘记录</p>
+            </>
+          )}
         </div>
         
         <div className="flex gap-2">
@@ -644,9 +678,9 @@ export default function InterviewDetailPage() {
             </TabsContent>
 
             {/* AI分析 */}
-            {aiAnalysis && (
+            {(aiAnalysis || record.aiAnalysis) && (
               <TabsContent value="analysis" className="space-y-4" id="analysis">
-                {aiAnalysis.strengths && aiAnalysis.strengths.length > 0 ? (
+                {aiAnalysis && aiAnalysis.strengths && aiAnalysis.strengths.length > 0 ? (
                   <MergedAnalysis analysis={aiAnalysis as any} />
                 ) : (
                   <Card>
@@ -695,30 +729,32 @@ export default function InterviewDetailPage() {
         </Card>
 
         {/* 面试基本信息 */}
-        <Card>
-          <CardContent className="pt-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">公司:</span>
-                <span className="font-medium">{record.schedule.company}</span>
+        {record.schedule && (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">公司:</span>
+                  <span className="font-medium">{record.schedule.company}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">职位:</span>
+                  <span className="font-medium">{record.schedule.position}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">轮次:</span>
+                  <span className="font-medium">第{record.schedule.round}轮</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">面试日期:</span>
+                  <span className="font-medium">
+                    {format(new Date(record.schedule.interviewDate), "MM月dd日", { locale: zhCN })}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">职位:</span>
-                <span className="font-medium">{record.schedule.position}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">轮次:</span>
-                <span className="font-medium">第{record.schedule.round}轮</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">面试日期:</span>
-                <span className="font-medium">
-                  {format(new Date(record.schedule.interviewDate), "MM月dd日", { locale: zhCN })}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

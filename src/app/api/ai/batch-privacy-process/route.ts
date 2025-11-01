@@ -42,25 +42,33 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `你是一个专业的隐私保护助手。请分析给定的面试问题列表，识别并处理其中的敏感信息，包括但不限于：
+          content: `你是一个专业的隐私保护助手。请分析给定的面试问题列表，识别并处理其中的敏感信息。
 
-1. 中文人名（如：张三、李四等）
-2. 手机号码
-3. 邮箱地址
-4. 身份证号
-5. 银行卡号
-6. 具体地址信息
-7. 薪资信息
-8. 公司内部信息
-9. 具体时间信息
+重要：只处理真正的敏感信息，不要误判技术术语、常见词汇或面试问题本身的内容。
+
+需要处理的敏感信息类型：
+1. 中文人名（必须是真实的人名，如：张三、李四、王小明等。不要误判技术词汇如"面试问题"、"开发"等）
+2. 手机号码（11位数字，如：13812345678）
+3. 邮箱地址（如：example@email.com）
+4. 身份证号（18位）
+5. 银行卡号（16-19位）
+6. 具体详细地址（如：XX省XX市XX区XX街道XX号）
+7. 具体薪资数字（如：月薪50000元）
+8. 公司内部保密信息
+
+不需要处理的内容（这些是正常的面试内容，应该保留）：
+- 技术术语和概念（如：react hooks、ES5、ES6、javascript等）
+- 常见面试问题文本（如："面试问题"、"如何"、"用javascript"等）
+- 编程语言、框架名称
+- 算法和数据结构名称
 
 对于检测到的敏感信息，请按以下规则进行脱敏：
-- 中文人名：完全用星号替换（如：张三 -> **，李小明 -> ***，盛宇轩 -> ***）
+- 中文人名：完全用星号替换（如：张三 -> **，李小明 -> ***）
 - 手机号：保留前3位，其余用*替代（如：13812345678 -> 138****）
 - 邮箱：用***@***.***替代
 - 其他敏感信息：用***替代
 
-请保持问题的原始结构和含义，只对敏感信息进行脱敏处理。返回JSON格式，包含处理后的每个问题。`
+请保持问题的原始结构和含义，只对真正的敏感信息进行脱敏处理，技术词汇和常见面试问题内容必须完整保留。返回JSON格式，包含处理后的每个问题。`
         },
         {
           role: "user",
@@ -157,16 +165,13 @@ export async function POST(request: NextRequest) {
       console.error('解析AI响应失败:', parseError)
       console.log('原始响应内容:', result)
       
-      // 解析失败时，尝试简单的文本替换
+      // 解析失败时，使用同步版本的隐私处理（仅处理明确的敏感信息，不处理姓名）
+      // 导入同步处理函数
+      const { maskSensitiveInfo } = await import('@/lib/privacy-utils')
       const processedQuestions = questions.map((q, _index) => {
         const originalText = typeof q === 'string' ? q : q.text || q.question || ''
-        // 简单的姓名脱敏（作为备用方案）
-        const maskedText = originalText.replace(/[\u4e00-\u9fa5]{2,4}/g, (match: string) => {
-          if (match.length === 2) return '**'
-          if (match.length === 3) return '***'
-          if (match.length === 4) return '****'
-          return match
-        })
+        // 使用同步版本，只处理明确的敏感信息（手机号、邮箱等），不处理姓名
+        const maskedText = maskSensitiveInfo(originalText)
         
         return {
           ...q,

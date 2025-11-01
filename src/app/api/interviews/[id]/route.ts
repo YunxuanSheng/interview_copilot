@@ -206,12 +206,12 @@ export async function GET(
       return NextResponse.json(record)
     }
 
-    const record = await prisma.interviewRecord.findFirst({
+    // 查询记录，支持 scheduleId 为 null 的情况
+    // 1. 有 scheduleId 的记录：通过 schedule.userId 验证
+    // 2. 没有 scheduleId 的记录：通过转录任务验证用户所有权
+    const record = await prisma.interviewRecord.findUnique({
       where: { 
-        id: recordId,
-        schedule: {
-          userId: session.user.id
-        }
+        id: recordId
       },
       include: {
         schedule: {
@@ -219,7 +219,8 @@ export async function GET(
             company: true,
             position: true,
             interviewDate: true,
-            round: true
+            round: true,
+            userId: true
           }
         },
         questions: {
@@ -237,6 +238,51 @@ export async function GET(
 
     if (!record) {
       return NextResponse.json({ error: "Interview record not found" }, { status: 404 })
+    }
+
+    // 验证用户所有权
+    let hasAccess = false
+
+    // 情况1: 有 schedule，验证 schedule 属于当前用户
+    if (record.scheduleId && record.schedule) {
+      hasAccess = record.schedule.userId === session.user.id
+    } 
+    // 情况2: 没有 schedule，通过转录任务验证或允许访问（用户可能手动创建）
+    else if (!record.scheduleId) {
+      // 如果有 transcript，尝试通过转录任务验证
+      if (record.transcript) {
+        const matchingTask = await prisma.audioTranscriptionTask.findFirst({
+          where: {
+            userId: session.user.id,
+            transcript: {
+              equals: record.transcript,
+              // 允许部分匹配（如果 transcript 被修改了）
+            },
+            status: 'completed'
+          },
+          orderBy: {
+            completedAt: 'desc'
+          }
+        })
+        
+        if (matchingTask) {
+          hasAccess = true
+        }
+      }
+      
+      // 如果没有找到匹配的转录任务，但记录是最近创建的（30分钟内），允许访问
+      // 这样可以允许用户创建记录后立即查看，即使转录任务匹配失败
+      if (!hasAccess) {
+        const recordAge = Date.now() - new Date(record.createdAt).getTime()
+        const thirtyMinutes = 30 * 60 * 1000
+        if (recordAge < thirtyMinutes) {
+          hasAccess = true
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     return NextResponse.json(record)
@@ -309,17 +355,65 @@ export async function PUT(
       return NextResponse.json(updatedRecord)
     }
 
-    const record = await prisma.interviewRecord.findFirst({
+    // 查询记录，支持 scheduleId 为 null 的情况
+    const record = await prisma.interviewRecord.findUnique({
       where: { 
-        id: recordId,
+        id: recordId
+      },
+      include: {
         schedule: {
-          userId: session.user.id
+          select: {
+            userId: true
+          }
         }
       }
     })
 
     if (!record) {
       return NextResponse.json({ error: "Interview record not found" }, { status: 404 })
+    }
+
+    // 验证用户所有权
+    let hasAccess = false
+
+    // 情况1: 有 schedule，验证 schedule 属于当前用户
+    if (record.scheduleId && record.schedule) {
+      hasAccess = record.schedule.userId === session.user.id
+    } 
+    // 情况2: 没有 schedule，通过转录任务验证
+    else if (!record.scheduleId) {
+      // 如果有 transcript，尝试通过转录任务验证
+      if (record.transcript) {
+        const matchingTask = await prisma.audioTranscriptionTask.findFirst({
+          where: {
+            userId: session.user.id,
+            transcript: {
+              equals: record.transcript,
+            },
+            status: 'completed'
+          },
+          orderBy: {
+            completedAt: 'desc'
+          }
+        })
+        
+        if (matchingTask) {
+          hasAccess = true
+        }
+      }
+      
+      // 如果没有找到匹配的转录任务，但记录是最近创建的（30分钟内），允许更新
+      if (!hasAccess) {
+        const recordAge = Date.now() - new Date(record.createdAt).getTime()
+        const thirtyMinutes = 30 * 60 * 1000
+        if (recordAge < thirtyMinutes) {
+          hasAccess = true
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // 使用事务来更新记录和问题
@@ -416,11 +510,16 @@ export async function DELETE(
       return NextResponse.json({ message: "Interview record deleted successfully" })
     }
 
-    const record = await prisma.interviewRecord.findFirst({
+    // 查询记录，支持 scheduleId 为 null 的情况
+    const record = await prisma.interviewRecord.findUnique({
       where: { 
-        id: recordId,
+        id: recordId
+      },
+      include: {
         schedule: {
-          userId: session.user.id
+          select: {
+            userId: true
+          }
         }
       }
     })
@@ -429,6 +528,55 @@ export async function DELETE(
       return NextResponse.json({ error: "Interview record not found" }, { status: 404 })
     }
 
+    // 验证用户所有权
+    let hasAccess = false
+
+    // 情况1: 有 schedule，验证 schedule 属于当前用户
+    if (record.scheduleId && record.schedule) {
+      hasAccess = record.schedule.userId === session.user.id
+    } 
+    // 情况2: 没有 schedule，通过转录任务验证
+    else if (!record.scheduleId) {
+      // 如果有 transcript，尝试通过转录任务验证
+      if (record.transcript) {
+        const matchingTask = await prisma.audioTranscriptionTask.findFirst({
+          where: {
+            userId: session.user.id,
+            transcript: {
+              equals: record.transcript,
+            },
+            status: 'completed'
+          },
+          orderBy: {
+            completedAt: 'desc'
+          }
+        })
+        
+        if (matchingTask) {
+          hasAccess = true
+        }
+      }
+      
+      // 如果没有找到匹配的转录任务，但记录是最近创建的（30分钟内），允许删除
+      if (!hasAccess) {
+        const recordAge = Date.now() - new Date(record.createdAt).getTime()
+        const thirtyMinutes = 30 * 60 * 1000
+        if (recordAge < thirtyMinutes) {
+          hasAccess = true
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // 先删除关联的问题
+    await prisma.interviewQuestion.deleteMany({
+      where: { recordId }
+    })
+
+    // 删除记录
     await prisma.interviewRecord.delete({
       where: { id: recordId }
     })

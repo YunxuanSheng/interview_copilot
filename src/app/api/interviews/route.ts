@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Session } from "next-auth"
 
+// 类型断言辅助函数
+const prismaAudioTask = prisma as any
+
 export async function GET(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions) as Session | null
@@ -85,11 +88,26 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ success: true, data: mockRecords })
     }
 
-    const records = await prisma.interviewRecord.findMany({
+    // 查询所有与当前用户相关的面试记录
+    // 1. 通过 schedule 关联的记录
+    // 2. 没有 schedule 的记录（scheduleId 为 null）- 通过转录任务验证用户所有权
+    const userId = session.user.id
+    
+    // 先查询所有可能的记录（有schedule或没有schedule）
+    const allRecords = await prisma.interviewRecord.findMany({
       where: {
-        schedule: {
-          userId: session.user.id
-        }
+        OR: [
+          // 有 schedule 且属于当前用户
+          {
+            schedule: {
+              userId: userId
+            }
+          },
+          // 没有 schedule 的记录（需要后续验证）
+          {
+            scheduleId: null as any
+          }
+        ]
       },
       include: {
         schedule: {
@@ -97,7 +115,8 @@ export async function GET(_request: NextRequest) {
             company: true,
             position: true,
             interviewDate: true,
-            round: true
+            round: true,
+            userId: true
           }
         },
         questions: {
@@ -113,22 +132,60 @@ export async function GET(_request: NextRequest) {
       },
       orderBy: { createdAt: "desc" }
     })
+    
+    // 对于没有 schedule 的记录，需要通过转录任务验证用户所有权
+    const validRecords: typeof allRecords = []
+    for (const record of allRecords) {
+      const recordWithSchedule = record as typeof record & { schedule: { userId: string } | null; questions: any[] }
+      if (record.scheduleId && recordWithSchedule.schedule && recordWithSchedule.schedule.userId === userId) {
+        // 有 schedule 且属于当前用户，直接添加
+        validRecords.push(record)
+      } else if (!record.scheduleId) {
+        // 没有 schedule，检查转录任务
+        if (record.transcript) {
+          const matchingTask = await prismaAudioTask.audioTranscriptionTask.findFirst({
+            where: {
+              userId: userId,
+              transcript: record.transcript,
+              status: 'completed'
+            },
+            orderBy: {
+              completedAt: 'desc'
+            },
+            take: 1
+          })
+          
+          if (matchingTask) {
+            validRecords.push(record)
+          } else {
+            // 如果没有匹配的转录任务，但记录是最近30分钟内创建的，也允许访问
+            const recordAge = Date.now() - new Date(record.createdAt).getTime()
+            const thirtyMinutes = 30 * 60 * 1000
+            if (recordAge < thirtyMinutes) {
+              validRecords.push(record)
+            }
+          }
+        }
+      }
+    }
+    
+    const records = validRecords
 
     // 转换数据格式，将schedule字段提升到顶层
-    const formattedRecords = records.map(record => ({
+    const formattedRecords = records.map((record: any) => ({
       id: record.id,
-      company: record.schedule.company,
-      position: record.schedule.position,
-      interviewDate: record.schedule.interviewDate,
-      round: record.schedule.round,
-      questions: record.questions.map(q => ({
+      company: record.schedule?.company || "未知公司",
+      position: record.schedule?.position || "未知职位",
+      interviewDate: record.schedule?.interviewDate || record.createdAt,
+      round: record.schedule?.round || 1,
+      questions: (record.questions || []).map((q: any) => ({
         id: q.id,
         text: q.questionText,
         question: q.questionText,
         answer: q.userAnswer,
         type: q.questionType || 'technical'
       })),
-      answers: record.questions.map(q => q.userAnswer ? { text: q.userAnswer } : null).filter(Boolean),
+      answers: (record.questions || []).map((q: any) => q.userAnswer ? { text: q.userAnswer } : null).filter(Boolean),
       scheduleId: record.scheduleId,
       audioFilePath: record.audioFilePath,
       transcript: record.transcript,
@@ -153,26 +210,218 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions) as Session | null
     
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ 
+        success: false,
+        error: "Unauthorized",
+        message: "请先登录"
+      }, { status: 401 })
     }
 
+    const userId = session.user.id
     const body = await request.json()
     const {
       scheduleId,
       transcript,
       aiAnalysis,
       feedback,
-      questions
+      questions,
+      taskId  // 新增：转录任务ID
     } = body
 
-    const record = await prisma.interviewRecord.create({
-      data: {
-        scheduleId,
-        transcript,
-        aiAnalysis,
-        feedback,
-        questions: {
+    // 处理 scheduleId：如果为空或 "skip"，则设为 null（可选）
+    let finalScheduleId: string | null = null
+
+    if (scheduleId && scheduleId !== 'skip' && scheduleId !== '') {
+      // 验证 scheduleId 是否存在且属于当前用户
+      const schedule = await prisma.interviewSchedule.findUnique({
+        where: { id: scheduleId }
+      })
+
+      if (!schedule) {
+        return NextResponse.json({
+          success: false,
+          error: "Schedule not found",
+          message: "面试安排不存在"
+        }, { status: 404 })
+      }
+
+      if (schedule.userId !== userId) {
+        return NextResponse.json({
+          success: false,
+          error: "Forbidden",
+          message: "无权访问此面试安排"
+        }, { status: 403 })
+      }
+
+      finalScheduleId = scheduleId
+    }
+
+    // 检查是否存在匹配的记录（通过taskId或transcript）
+    let existingRecord: any = null
+    
+    if (taskId && transcript) {
+      // 通过taskId查找转录任务，然后通过transcript匹配记录
+      const task = await prismaAudioTask.audioTranscriptionTask.findUnique({
+        where: { id: taskId }
+      })
+      
+      if (task && task.userId === userId && task.transcript) {
+        // 查找匹配的面试记录
+        existingRecord = await prisma.interviewRecord.findFirst({
+          where: {
+            transcript: {
+              equals: task.transcript
+            },
+            OR: [
+              // 有schedule且属于当前用户
+              {
+                schedule: {
+                  userId: userId
+                }
+              },
+              // 没有schedule但transcript匹配
+              {
+                scheduleId: null as any
+              }
+            ]
+          },
+          include: {
+            schedule: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        })
+      }
+    } else if (transcript) {
+      // 没有taskId，直接通过transcript匹配
+      existingRecord = await prisma.interviewRecord.findFirst({
+        where: {
+          transcript: {
+            equals: transcript
+          },
+          OR: [
+            // 有schedule且属于当前用户
+            {
+              schedule: {
+                userId: userId
+              }
+            },
+            // 没有schedule，需要通过转录任务验证
+            {
+              scheduleId: null as any
+            }
+          ]
+        },
+        include: {
+          schedule: {
+            select: {
+              userId: true
+            }
+          }
+        }
+      })
+      
+      // 对于没有schedule的记录，验证是否属于当前用户（通过转录任务）
+      if (existingRecord && !existingRecord.scheduleId) {
+        const matchingTask = await prismaAudioTask.audioTranscriptionTask.findFirst({
+          where: {
+            userId: userId,
+            transcript: {
+              equals: transcript
+            },
+            status: 'completed'
+          }
+        })
+        
+        if (!matchingTask) {
+          // 如果找不到匹配的转录任务，但记录是最近创建的，也允许更新
+          const recordAge = Date.now() - new Date(existingRecord.createdAt).getTime()
+          const thirtyMinutes = 30 * 60 * 1000
+          if (recordAge >= thirtyMinutes) {
+            existingRecord = null  // 时间太久，不允许更新
+          }
+        }
+      } else if (existingRecord && existingRecord.scheduleId && existingRecord.schedule) {
+        // 有schedule，验证是否属于当前用户
+        if (existingRecord.schedule.userId !== userId) {
+          existingRecord = null  // 不属于当前用户，不允许更新
+        }
+      }
+    }
+
+    // 如果找到匹配的记录且没有aiAnalysis（或需要更新），则更新记录
+    if (existingRecord && (!existingRecord.aiAnalysis || aiAnalysis)) {
+      // 使用事务更新记录和问题
+      const updatedRecord = await prisma.$transaction(async (tx) => {
+        // 更新面试记录
+        await tx.interviewRecord.update({
+          where: { id: existingRecord.id },
+          data: {
+            transcript: transcript || existingRecord.transcript,
+            aiAnalysis: aiAnalysis || existingRecord.aiAnalysis,
+            feedback: feedback !== undefined ? feedback : existingRecord.feedback,
+            scheduleId: finalScheduleId !== null ? finalScheduleId : (existingRecord.scheduleId || undefined)
+          }
+        })
+
+        // 删除现有问题
+        await tx.interviewQuestion.deleteMany({
+          where: { recordId: existingRecord.id }
+        })
+
+        // 创建新问题
+        if (questions && questions.length > 0) {
+          await tx.interviewQuestion.createMany({
+            data: questions.map((q: {
+              questionText: string
+              userAnswer?: string
+              aiEvaluation?: string
+              recommendedAnswer?: string
+              questionType?: string
+            }) => ({
+              recordId: existingRecord.id,
+              questionText: q.questionText,
+              userAnswer: q.userAnswer || null,
+              aiEvaluation: q.aiEvaluation || null,
+              recommendedAnswer: q.recommendedAnswer || null,
+              questionType: q.questionType || null
+            }))
+          })
+        }
+
+        // 返回更新后的记录
+        return await tx.interviewRecord.findUnique({
+          where: { id: existingRecord.id },
+          include: {
+            schedule: {
+              select: {
+                company: true,
+                position: true,
+                interviewDate: true,
+                round: true
+              }
+            },
+            questions: true
+          }
+        })
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: updatedRecord,
+        updated: true  // 标识这是更新操作
+      })
+    }
+
+    // 没有匹配的记录，创建新记录
+    const createData: any = {
+      transcript: transcript || null,
+      aiAnalysis: aiAnalysis || null,
+      feedback: feedback || null,
+      questions: {
           create: questions?.map((q: {
             questionText: string
             userAnswer?: string
@@ -181,13 +430,20 @@ export async function POST(request: NextRequest) {
             questionType?: string
           }) => ({
             questionText: q.questionText,
-            userAnswer: q.userAnswer,
-            aiEvaluation: q.aiEvaluation,
-            recommendedAnswer: q.recommendedAnswer,
-            questionType: q.questionType
+            userAnswer: q.userAnswer || null,
+            aiEvaluation: q.aiEvaluation || null,
+            recommendedAnswer: q.recommendedAnswer || null,
+            questionType: q.questionType || null
           })) || []
-        }
-      },
+      }
+    }
+    
+    if (finalScheduleId) {
+      createData.scheduleId = finalScheduleId
+    }
+    
+    const record = await prisma.interviewRecord.create({
+      data: createData,
       include: {
         schedule: {
           select: {
@@ -201,12 +457,22 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(record)
+    return NextResponse.json({
+      success: true,
+      data: record,
+      updated: false  // 标识这是创建操作
+    })
   } catch (error) {
     console.error("Create interview record error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    // 输出详细错误信息以便调试
+    if (error instanceof Error) {
+      console.error("错误详情:", error.message)
+      console.error("错误堆栈:", error.stack)
+    }
+    return NextResponse.json({
+      success: false,
+      error: "Internal server error",
+      message: "创建面试记录失败，请稍后重试"
+    }, { status: 500 })
   }
 }

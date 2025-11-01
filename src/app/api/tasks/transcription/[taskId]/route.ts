@@ -21,9 +21,20 @@ export async function GET(
 
     const { taskId } = await params
 
-    // 查询任务
+    // 查询任务，包含关联的 schedule 信息
     const task = await prisma.audioTranscriptionTask.findUnique({
-      where: { id: taskId }
+      where: { id: taskId },
+      include: {
+        schedule: {
+          select: {
+            id: true,
+            company: true,
+            position: true,
+            round: true,
+            interviewDate: true
+          }
+        }
+      }
     })
 
     if (!task) {
@@ -62,6 +73,14 @@ export async function GET(
         remainingMinutes,
         transcript: task.transcript,
         error: task.error,
+        scheduleId: task.scheduleId,
+        schedule: task.schedule ? {
+          id: task.schedule.id,
+          company: task.schedule.company,
+          position: task.schedule.position,
+          round: task.schedule.round,
+          interviewDate: task.schedule.interviewDate.toISOString()
+        } : null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         completedAt: task.completedAt?.toISOString() || null
