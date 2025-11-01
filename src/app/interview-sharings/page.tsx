@@ -650,7 +650,7 @@ export default function InterviewSharingsPage() {
                           </div>
                           <div className="flex items-center text-xs text-gray-500">
                             <User className="w-3 h-3 mr-1" />
-                            {sharing.user.name || '匿名用户'}
+                            {sharing.isAnonymous ? '匿名用户' : (sharing.user.name || '匿名用户')}
                           </div>
                         </div>
 
