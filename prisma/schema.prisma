@@ -31,6 +31,7 @@ model User {
   userCredits         UserCredits?
   interviewSharings   InterviewSharing[]
   interviewLikes      InterviewLike[]
+  transcriptionTasks  AudioTranscriptionTask[]
 
   @@map("users")
 }
@@ -346,4 +347,24 @@ model InterviewLike {
 
   @@unique([userId, interviewSharingId])
   @@map("interview_likes")
+}
+
+model AudioTranscriptionTask {
+  id                String   @id @default(cuid())
+  userId            String
+  status            String   @default("pending") // pending, processing, completed, failed
+  audioFileName     String
+  audioFileSize     Int      // 文件大小（字节）
+  audioFilePath     String?  // 文件存储路径
+  estimatedDuration Int      // 预计处理时间（分钟）
+  actualDuration    Int?     // 实际处理时间（分钟）
+  transcript        String?  // 转录结果
+  error             String?  // 错误信息
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  completedAt       DateTime? // 完成时间
+  readAt            DateTime? // 用户已读时间，null表示未读
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audio_transcription_tasks")
 }

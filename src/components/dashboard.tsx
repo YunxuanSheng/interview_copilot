@@ -98,8 +98,32 @@ export default function Dashboard() {
   const todaySchedules = schedules.filter(schedule => {
     const scheduleDate = new Date(schedule.interviewDate)
     const today = new Date()
-    return scheduleDate.toDateString() === today.toDateString() && schedule.status === "scheduled"
+    today.setHours(0, 0, 0, 0)
+    scheduleDate.setHours(0, 0, 0, 0)
+    return scheduleDate.getTime() === today.getTime() && schedule.status === "scheduled"
   }).length
+
+  // 计算未来7天内的面试数量
+  const upcomingSchedulesCount = schedules.filter(schedule => {
+    const scheduleDate = new Date(schedule.interviewDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    scheduleDate.setHours(0, 0, 0, 0)
+    const diffTime = scheduleDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays > 0 && diffDays <= 7 && schedule.status === "scheduled"
+  }).length
+
+  // 获取最近的面试安排（未来30天内）
+  const nearestSchedule = schedules
+    .filter(schedule => {
+      const scheduleDate = new Date(schedule.interviewDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      scheduleDate.setHours(0, 0, 0, 0)
+      return scheduleDate >= today && schedule.status === "scheduled"
+    })
+    .sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime())[0]
 
   useEffect(() => {
     if (session) {
@@ -490,11 +514,34 @@ export default function Dashboard() {
           欢迎回来，{session.user?.name || "用户"}！
         </h1>
         <p className="text-blue-100">
-          {todaySchedules > 0 ? (
-            <>今天有 {todaySchedules} 场面试安排，继续加油！</>
-          ) : (
-            <>今天没有面试安排，是时候准备新的机会了！</>
-          )}
+          {(() => {
+            // 今天有面试
+            if (todaySchedules > 0) {
+              return <>今天有 {todaySchedules} 场面试安排，继续加油！</>
+            }
+            
+            // 今天没有，但未来7天内有面试
+            if (upcomingSchedulesCount > 0) {
+              return <>未来7天内有 {upcomingSchedulesCount} 场面试，提前做好准备吧！</>
+            }
+            
+            // 今天没有，但未来30天内有最近的面试
+            if (nearestSchedule) {
+              const scheduleDate = new Date(nearestSchedule.interviewDate)
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              scheduleDate.setHours(0, 0, 0, 0)
+              const diffTime = scheduleDate.getTime() - today.getTime()
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+              
+              if (diffDays <= 30) {
+                return <>距离最近的面试还有 {diffDays} 天（{nearestSchedule.company} - {nearestSchedule.position}），保持准备状态！</>
+              }
+            }
+            
+            // 完全没有未来的面试
+            return <>今天没有面试安排，是时候准备新的机会了！</>
+          })()}
         </p>
       </div>
 
@@ -906,7 +953,8 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Credits状态 */}
+      {/* Credits状态 - 已隐藏 */}
+      {false && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -948,8 +996,10 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* AI使用统计 */}
+      {/* AI使用统计 - 已隐藏 */}
+      {false && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1010,6 +1060,7 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

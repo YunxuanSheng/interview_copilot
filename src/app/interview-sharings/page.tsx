@@ -366,19 +366,10 @@ export default function InterviewSharingsPage() {
                           const questions = typeof sharing.questions === 'string' 
                             ? JSON.parse(sharing.questions) 
                             : sharing.questions || []
-                          return questions.slice(0, 2).map((question: any, index: number) => (
-                            <p key={index} className="text-xs text-gray-600 line-clamp-2">
-                              {typeof question === 'string' ? question : question.question || question.text}
-                            </p>
-                          ))
-                        })()}
-                        {(() => {
-                          const questions = typeof sharing.questions === 'string' 
-                            ? JSON.parse(sharing.questions) 
-                            : sharing.questions || []
-                          return questions.length > 2 && (
-                            <p className="text-xs text-gray-500">
-                              还有{questions.length - 2}个问题...
+                          const questionCount = Array.isArray(questions) ? questions.length : 0
+                          return (
+                            <p className="text-xs text-gray-600">
+                              {questionCount > 0 ? `共 ${questionCount} 个问题` : '暂无问题'}
                             </p>
                           )
                         })()}
@@ -546,19 +537,10 @@ export default function InterviewSharingsPage() {
                               const questions = typeof sharing.questions === 'string' 
                                 ? JSON.parse(sharing.questions) 
                                 : sharing.questions || []
-                              return questions.slice(0, 2).map((question: any, index: number) => (
-                                <p key={index} className="text-xs text-gray-600 line-clamp-2">
-                                  {typeof question === 'string' ? question : question.question || question.text}
-                                </p>
-                              ))
-                            })()}
-                            {(() => {
-                              const questions = typeof sharing.questions === 'string' 
-                                ? JSON.parse(sharing.questions) 
-                                : sharing.questions || []
-                              return questions.length > 2 && (
-                                <p className="text-xs text-gray-500">
-                                  还有{questions.length - 2}个问题...
+                              const questionCount = Array.isArray(questions) ? questions.length : 0
+                              return (
+                                <p className="text-xs text-gray-600">
+                                  {questionCount > 0 ? `共 ${questionCount} 个问题` : '暂无问题'}
                                 </p>
                               )
                             })()}

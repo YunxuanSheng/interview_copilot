@@ -23,7 +23,10 @@ import {
   Menu,
   X,
   FolderOpen,
-  Share2
+  Share2,
+  ListTodo,
+  Settings,
+  Bell
 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 
@@ -46,6 +49,17 @@ interface CreditsStatus {
   monthlyLimit: number
 }
 
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  taskId: string
+  audioFileName: string
+  completedAt: string | null
+  createdAt: string
+}
+
 export default function Navigation() {
   const { data: session, status } = useSession()
   const pathname = usePathname()
@@ -53,6 +67,9 @@ export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [creditsStatus, setCreditsStatus] = useState<CreditsStatus | null>(null)
   const [creditsLoading, setCreditsLoading] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   // 获取credits状态
   const fetchCreditsStatus = useCallback(async () => {
@@ -73,12 +90,62 @@ export default function Navigation() {
     }
   }, [session?.user])
 
-  // 当用户登录时获取credits状态
+  // 获取通知
+  const fetchNotifications = useCallback(async () => {
+    if (!session?.user || !('id' in session.user)) return
+    
+    try {
+      const response = await fetch('/api/notifications')
+      const data = await response.json()
+      
+      if (data.success) {
+        setNotifications(data.data.notifications || [])
+        setUnreadCount(data.data.unreadCount || 0)
+      }
+    } catch (error) {
+      console.error('获取通知失败:', error)
+    }
+  }, [session?.user])
+
+  // 标记通知为已读
+  const markAsRead = useCallback(async (taskId: string) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ taskId })
+      })
+      
+      if (response.ok) {
+        // 更新本地状态
+        setNotifications(prev => prev.filter(n => n.taskId !== taskId))
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error('标记通知已读失败:', error)
+    }
+  }, [])
+
+  // 当用户登录时获取credits状态和通知
   useEffect(() => {
     if (session?.user && 'id' in session.user) {
       fetchCreditsStatus()
+      fetchNotifications()
     }
-  }, [session?.user, fetchCreditsStatus])
+  }, [session?.user, fetchCreditsStatus, fetchNotifications])
+
+  // 轮询通知（每30秒检查一次）
+  useEffect(() => {
+    if (!session?.user || !('id' in session.user)) return
+
+    const interval = setInterval(() => {
+      fetchNotifications()
+    }, 30000) // 30秒轮询一次
+
+    return () => clearInterval(interval)
+  }, [session?.user, fetchNotifications])
 
   // 调试信息
   console.log("Navigation - Session status:", status)
@@ -125,6 +192,61 @@ export default function Navigation() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {/* 通知铃铛 */}
+            <DropdownMenu open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80" align="end" forceMount>
+                <DropdownMenuLabel className="font-semibold">
+                  通知
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    暂无通知
+                  </div>
+                ) : (
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {notifications.map((notification, index) => (
+                      <div key={notification.id}>
+                        <DropdownMenuItem
+                          className="flex flex-col items-start p-4 cursor-pointer hover:bg-gray-50 rounded-none"
+                          onClick={async () => {
+                            await markAsRead(notification.taskId)
+                            setIsNotificationOpen(false)
+                              router.push(`/interviews`)
+                          }}
+                        >
+                          <div className="flex items-start justify-between w-full">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{notification.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {notification.message}
+                              </p>
+                              {notification.completedAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(notification.completedAt).toLocaleString('zh-CN')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+                        {index < notifications.length - 1 && <DropdownMenuSeparator />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -175,6 +297,12 @@ export default function Navigation() {
                   <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     个人档案
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/user-management" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    用户管理
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

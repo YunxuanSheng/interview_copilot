@@ -492,135 +492,147 @@ export default function SchedulesPage() {
             </Select>
           </div>
 
-          {/* 岗位投递列表 */}
-          <div className="grid gap-4">
-            {filteredJobApplications.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <div className="text-gray-400 mb-4">
-                    <Calendar className="w-12 h-12" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">暂无岗位投递</h3>
-                  <p className="text-gray-500 mb-4">开始创建您的第一个岗位投递吧</p>
-                  <Button asChild variant="outline">
-                    <Link href="/schedules/job-application/new">
-                      <Plus className="w-4 h-4 mr-2" />
-                      新建投递
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredJobApplications.map((application) => {
-                const statusOption = statusOptions.find(opt => opt.value === application.status)
-                const priorityOption = priorityOptions.find(opt => opt.value === application.priority)
-                
-                return (
-                  <Card key={application.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="text-xl">{application.position}</CardTitle>
-                          <CardDescription className="text-lg font-medium text-gray-900">
-                            {application.company}
-                            {application.department && ` · ${application.department}`}
-                          </CardDescription>
-                        </div>
-                        <div className="flex gap-2">
+          {/* 岗位投递表格 */}
+          {filteredJobApplications.length === 0 ? (
+            <div className="text-center py-12">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无岗位投递</h3>
+              <p className="text-gray-500 mb-4">开始创建您的第一个岗位投递吧</p>
+              <Button asChild variant="outline">
+                <Link href="/schedules/job-application/new">
+                  <Plus className="w-4 h-4 mr-2" />
+                  新建投递
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">公司</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">职位</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">部门</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">地点</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">薪资</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">投递日期</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">状态</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">优先级</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredJobApplications.map((application) => {
+                    const statusOption = statusOptions.find(opt => opt.value === application.status)
+                    const priorityOption = priorityOptions.find(opt => opt.value === application.priority)
+                    
+                    return (
+                      <tr key={application.id} className="border-b hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-medium">{application.company}</div>
+                          {application.isReferral && (
+                            <div className="text-xs text-gray-500 flex items-center mt-1">
+                              <User className="w-3 h-3 mr-1" />
+                              内推{application.referrerName && ` (${application.referrerName})`}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium">{application.position}</div>
+                          {application.jobDescription && (
+                            <div className="text-xs text-gray-500 line-clamp-1 mt-1">
+                              {application.jobDescription}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {application.department || '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {application.location ? (
+                            <div className="flex items-center text-sm">
+                              <MapPin className="w-4 h-4 mr-1 text-gray-400" />
+                              {application.location}
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {application.salary ? (
+                            <div className="flex items-center text-sm">
+                              <DollarSign className="w-4 h-4 mr-1 text-gray-400" />
+                              {application.salary}
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-4 h-4 mr-1 text-gray-400" />
+                            {new Date(application.appliedDate).toLocaleDateString('zh-CN')}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
                           <Badge className={statusOption?.color}>
                             {statusOption?.label}
                           </Badge>
+                        </td>
+                        <td className="py-3 px-4">
                           <Badge className={priorityOption?.color}>
                             {priorityOption?.label}
                           </Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        {application.location && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <MapPin className="w-4 h-4 mr-2" />
-                            {application.location}
-                          </div>
-                        )}
-                        {application.salary && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <DollarSign className="w-4 h-4 mr-2" />
-                            {application.salary}
-                          </div>
-                        )}
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          {new Date(application.appliedDate).toLocaleDateString()}
-                        </div>
-                        {application.isReferral && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <User className="w-4 h-4 mr-2" />
-                            内推{application.referrerName && ` (${application.referrerName})`}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {application.jobDescription && (
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-700 line-clamp-2">
-                            {application.jobDescription}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-2">
-                          {application.jobUrl && (
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2">
+                            {application.jobUrl && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(application.jobUrl, '_blank')}
+                                title="查看职位"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {application.schedules && application.schedules.length > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.location.href = `/schedules?jobApplication=${application.id}`}
+                                title={`查看面试 (${application.schedules.length})`}
+                              >
+                                面试 ({application.schedules.length})
+                              </Button>
+                            )}
+                            <Button asChild variant="outline" size="sm" title="安排面试">
+                              <Link href={`/schedules/add?jobApplicationId=${application.id}`}>
+                                安排
+                              </Link>
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(application.jobUrl, '_blank')}
+                              onClick={() => handleEditApplication(application)}
+                              title="编辑"
                             >
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              查看职位
+                              <Edit className="w-4 h-4" />
                             </Button>
-                          )}
-                          {application.schedules && application.schedules.length > 0 && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.location.href = `/schedules?jobApplication=${application.id}`}
+                              onClick={() => handleDeleteApplication(application.id)}
+                              className="text-red-600 hover:text-red-700"
+                              title="删除"
                             >
-                              查看面试 ({application.schedules.length})
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                          )}
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/schedules/add?jobApplicationId=${application.id}`}>
-                              安排面试
-                            </Link>
-                          </Button>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditApplication(application)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteApplication(application.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            )}
-          </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

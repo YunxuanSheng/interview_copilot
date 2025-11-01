@@ -6,10 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, Calendar, Building, MessageSquare, Mic, Share2 } from "lucide-react"
+import { FileText, Search, Calendar, Building, MessageSquare, Mic, Share2, Loader2, CheckCircle, Clock, AlertCircle, Sparkles, Filter, Trash2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Link from "next/link"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { toast } from "sonner"
 
 interface InterviewRecord {
   id: string
@@ -46,18 +49,63 @@ interface InterviewSchedule {
   createdAt: string
 }
 
+interface TranscriptionTask {
+  id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  audioFileName: string
+  audioFileSize: number
+  estimatedDuration: number
+  actualDuration: number | null
+  transcript: string | null
+  error: string | null
+  createdAt: string
+  completedAt: string | null
+}
+
+interface CombinedItem {
+  id: string
+  type: 'record' | 'task'
+  company?: string
+  position?: string
+  round?: number
+  interviewDate?: string
+  questions?: any[]
+  transcript?: string | null
+  aiAnalysis?: string | null
+  status: '语音转换中' | '转换完成' | '复盘完成' | '转换失败'
+  taskStatus?: 'pending' | 'processing' | 'completed' | 'failed'
+  audioFileName?: string
+  createdAt: string
+  completedAt?: string | null
+  taskId?: string
+}
+
 export default function InterviewsPage() {
   const { data: session, status } = useSession()
   const [records, setRecords] = useState<InterviewRecord[]>([])
-  const [_schedules, setSchedules] = useState<InterviewSchedule[]>([])
+  const [tasks, setTasks] = useState<TranscriptionTask[]>([])
+  const [schedules, setSchedules] = useState<InterviewSchedule[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
   const [hoveredEvent, setHoveredEvent] = useState<InterviewSchedule | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<CombinedItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (session) {
       fetchRecords()
       fetchSchedules()
+      fetchTasks()
+      
+      // 轮询刷新任务列表（每30秒）
+      const interval = setInterval(() => {
+        fetchTasks()
+        fetchRecords()
+      }, 30000)
+      
+      return () => clearInterval(interval)
     }
   }, [session])
 
@@ -111,6 +159,179 @@ export default function InterviewsPage() {
       console.error("Failed to fetch schedules:", error)
     }
   }
+
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch("/api/tasks/transcription")
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          setTasks(result.data)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      if (itemToDelete.type === 'task') {
+        // 删除转录任务
+        const response = await fetch(`/api/tasks/transcription/${itemToDelete.taskId}`, {
+          method: 'DELETE'
+        })
+        if (response.ok) {
+          toast.success('任务已删除')
+          // 刷新列表
+          fetchTasks()
+        } else {
+          const result = await response.json()
+          toast.error(result.message || '删除失败')
+        }
+      } else {
+        // 删除面试记录
+        const response = await fetch(`/api/interviews/${itemToDelete.id}`, {
+          method: 'DELETE'
+        })
+        if (response.ok) {
+          toast.success('面试记录已删除')
+          // 刷新列表
+          fetchRecords()
+        } else {
+          const result = await response.json()
+          toast.error(result.message || result.error || '删除失败')
+        }
+      }
+      setDeleteConfirmOpen(false)
+      setItemToDelete(null)
+    } catch (error) {
+      console.error('删除失败:', error)
+      toast.error('删除失败，请稍后重试')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // 合并面试记录和转录任务
+  const getCombinedItems = (): CombinedItem[] => {
+    const items: CombinedItem[] = []
+    
+    // 添加面试记录
+    records.forEach(record => {
+      const status: '语音转换中' | '转换完成' | '复盘完成' | '转换失败' = 
+        record.aiAnalysis ? '复盘完成' : 
+        record.transcript ? '转换完成' : 
+        '语音转换中'
+      
+      items.push({
+        id: record.id,
+        type: 'record',
+        company: record.company,
+        position: record.position,
+        round: record.round,
+        interviewDate: record.interviewDate,
+        questions: record.questions,
+        transcript: record.transcript,
+        aiAnalysis: record.aiAnalysis,
+        status,
+        createdAt: record.createdAt
+      })
+    })
+    
+    // 添加转录任务（尝试匹配到已有记录或schedule）
+    tasks.forEach(task => {
+      // 尝试通过transcript匹配到已有记录
+      let matchedRecord: InterviewRecord | null = null
+      if (task.transcript) {
+        matchedRecord = records.find(record => {
+          // 精确匹配
+          if (record.transcript === task.transcript) return true
+          // 或者transcript包含task的transcript的关键部分（去掉空格和换行比较）
+          const recordClean = record.transcript?.replace(/\s+/g, '')
+          const taskClean = task.transcript.replace(/\s+/g, '')
+          if (recordClean && taskClean) {
+            // 如果相似度超过80%（取较短的一方作为基准）
+            const minLength = Math.min(recordClean.length, taskClean.length)
+            const maxLength = Math.max(recordClean.length, taskClean.length)
+            if (minLength > 50 && maxLength > 0) {
+              // 简单的相似度检查：检查是否有大量重叠
+              const overlapLength = Math.min(
+                recordClean.substring(0, minLength) === taskClean.substring(0, minLength) ? minLength : 0,
+                recordClean.substring(recordClean.length - minLength) === taskClean.substring(taskClean.length - minLength) ? minLength : 0
+              )
+              if (overlapLength / minLength > 0.7) return true
+            }
+          }
+          return false
+        }) || null
+      }
+      
+      // 如果没有匹配的记录，或者匹配的记录还没有transcript，则添加任务项
+      // 但已经创建了记录的转录任务不应该再显示（避免重复）
+      if (!matchedRecord || !matchedRecord.transcript) {
+        const status: '语音转换中' | '转换完成' | '复盘完成' | '转换失败' = 
+          task.status === 'failed' ? '转换失败' :
+          task.status === 'completed' ? '转换完成' :
+          task.status === 'processing' ? '语音转换中' :
+          '语音转换中'
+        
+        // 如果匹配到记录，使用记录的公司和职位信息
+        // 否则尝试通过创建时间找到相近的schedule（在同一分钟内创建的）
+        let matchedSchedule: InterviewSchedule | null = null
+        if (!matchedRecord) {
+          matchedSchedule = schedules.find(schedule => {
+            const scheduleTime = new Date(schedule.createdAt).getTime()
+            const taskTime = new Date(task.createdAt).getTime()
+            // 如果schedule在任务创建前后5分钟内，可能是关联的
+            return Math.abs(scheduleTime - taskTime) < 5 * 60 * 1000
+          }) || null
+        }
+        
+        items.push({
+          id: task.id,
+          type: 'task',
+          status,
+          taskStatus: task.status,
+          audioFileName: task.audioFileName,
+          transcript: task.transcript,
+          createdAt: task.createdAt,
+          completedAt: task.completedAt,
+          taskId: task.id,
+          // 优先使用记录的信息，其次使用schedule的信息
+          company: matchedRecord?.company || matchedSchedule?.company,
+          position: matchedRecord?.position || matchedSchedule?.position,
+          round: matchedRecord?.round || matchedSchedule?.round,
+          interviewDate: matchedRecord?.interviewDate || matchedSchedule?.interviewDate
+        })
+      }
+    })
+    
+    // 按创建时间倒序排列
+    return items.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }
+
+  const combinedItems = getCombinedItems()
+  
+  // 筛选逻辑
+  const filteredItems = combinedItems.filter(item => {
+    // 搜索词筛选
+    const matchesSearch = 
+      item.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.audioFileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.transcript?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // 状态筛选
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter
+    
+    return matchesSearch && matchesStatus
+  })
 
   const filteredRecords = records.filter(record => 
     record.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -373,28 +594,45 @@ export default function InterviewsPage() {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Search and Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="搜索公司、职位或面试内容..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="搜索公司、职位或面试内容..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="筛选状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部状态</SelectItem>
+                  <SelectItem value="语音转换中">语音转换中</SelectItem>
+                  <SelectItem value="转换完成">转换完成</SelectItem>
+                  <SelectItem value="复盘完成">复盘完成</SelectItem>
+                  <SelectItem value="转换失败">转换失败</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Records List */}
-      {Object.keys(groupedByCompany).length === 0 ? (
+      {/* 统一的表格列表 */}
+      {filteredItems.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? "没有找到匹配的面试复盘记录" : "暂无面试复盘记录"}
+              {searchTerm ? "没有找到匹配的记录" : "暂无面试复盘记录"}
             </h3>
             <p className="text-gray-600 mb-6">
               {searchTerm 
@@ -417,8 +655,8 @@ export default function InterviewsPage() {
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <CardTitle className="text-xl sm:text-2xl">面试复盘记录</CardTitle>
-                <CardDescription className="text-sm sm:text-base mt-1">您的面试复盘历史记录</CardDescription>
+                <CardTitle className="text-xl sm:text-2xl">面试复盘</CardTitle>
+                <CardDescription className="text-sm sm:text-base mt-1">您的面试复盘记录和任务状态</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -427,68 +665,166 @@ export default function InterviewsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">公司</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">公司/文件</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">职位</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">轮次</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">面试日期</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">问题数量</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">整体表现</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">状态</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">创建时间</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.values(groupedByCompany).map((company) => 
-                    Array.from(company.positions.values()).map((position) =>
-                      position.records.map((record) => (
-                        <tr key={record.id} className="border-b hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="font-medium text-gray-900">{company.company}</div>
-                          </td>
-                          <td className="py-3 px-4">
+                  {filteredItems.map((item) => {
+                    const getStatusBadge = () => {
+                      switch (item.status) {
+                        case '语音转换中':
+                          return (
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              语音转换中
+                            </Badge>
+                          )
+                        case '转换完成':
+                          return (
+                            <Badge className="bg-green-100 text-green-800 border-green-200">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              转换完成
+                            </Badge>
+                          )
+                        case '复盘完成':
+                          return (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              复盘完成
+                            </Badge>
+                          )
+                        case '转换失败':
+                          return (
+                            <Badge className="bg-red-100 text-red-800 border-red-200">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              转换失败
+                            </Badge>
+                          )
+                      }
+                    }
+                    
+                    return (
+                      <tr key={item.id} className="border-b hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-gray-900">
+                            {item.company || item.audioFileName || '-'}
+                          </div>
+                          {item.type === 'task' && item.audioFileName && !item.company && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              录音文件：{item.audioFileName}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {item.position ? (
                             <Badge variant="secondary" className="text-xs">
-                              {position.position}
+                              {item.position}
+                              {item.round && ` · 第${item.round}轮`}
                             </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="outline" className="text-xs">
-                              第{record.round}轮
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <Calendar className="w-4 h-4" />
-                              {format(new Date(record.interviewDate), "MM月dd日", { locale: zhCN })}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <MessageSquare className="w-4 h-4" />
-                              {record.questions.length} 个问题
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="text-sm text-gray-600 max-w-xs truncate">
-                              {record.feedback || record.aiAnalysis || "暂无评价"}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <Button asChild variant="outline" size="sm">
-                                <Link href={`/interviews/${record.id}`}>
-                                  查看
-                                </Link>
-                              </Button>
-                              <Button asChild variant="outline" size="sm">
-                                <Link href={`/interviews/${record.id}/edit`}>
-                                  编辑
-                                </Link>
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                          ) : item.type === 'task' ? (
+                            <span className="text-sm text-gray-400 italic">未绑定面试</span>
+                          ) : (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {getStatusBadge()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <Calendar className="w-4 h-4" />
+                            {format(new Date(item.createdAt), "MM月dd日 HH:mm", { locale: zhCN })}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            {item.type === 'record' ? (
+                              <>
+                                <Button asChild variant="outline" size="sm">
+                                  <Link href={`/interviews/${item.id}`}>
+                                    查看
+                                  </Link>
+                                </Button>
+                                {!item.aiAnalysis && item.transcript && (
+                                  <Button asChild variant="default" size="sm">
+                                    <Link href={`/interviews/new?transcript=${encodeURIComponent(item.transcript || '')}`}>
+                                      <Sparkles className="w-3 h-3 mr-1" />
+                                      去做AI分析
+                                    </Link>
+                                  </Button>
+                                )}
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setItemToDelete(item)
+                                    setDeleteConfirmOpen(true)
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                {item.status === '转换完成' && item.transcript ? (
+                                  <>
+                                    <Button asChild variant="default" size="sm">
+                                      <Link href={`/interviews/new?transcript=${encodeURIComponent(item.transcript)}&taskId=${item.taskId}`}>
+                                        <Sparkles className="w-3 h-3 mr-1" />
+                                        去做AI分析
+                                      </Link>
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setItemToDelete(item)
+                                        setDeleteConfirmOpen(true)
+                                      }}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </>
+                                ) : item.status === '转换失败' ? (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setItemToDelete(item)
+                                      setDeleteConfirmOpen(true)
+                                    }}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" />
+                                    删除
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setItemToDelete(item)
+                                      setDeleteConfirmOpen(true)
+                                    }}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    disabled={item.status === '语音转换中' && item.taskStatus === 'processing'}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     )
-                  )}
+                  })}
                 </tbody>
               </table>
             </div>
@@ -496,6 +832,55 @@ export default function InterviewsPage() {
         </Card>
       )}
 
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除{itemToDelete?.type === 'task' ? '这个转录任务' : '这条面试记录'}吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          {itemToDelete && (
+            <div className="py-4">
+              <div className="text-sm text-gray-600 space-y-1">
+                {itemToDelete.type === 'task' ? (
+                  <>
+                    <p><span className="font-medium">文件：</span>{itemToDelete.audioFileName}</p>
+                    {itemToDelete.company && <p><span className="font-medium">公司：</span>{itemToDelete.company}</p>}
+                    <p><span className="font-medium">状态：</span>{itemToDelete.status}</p>
+                  </>
+                ) : (
+                  <>
+                    <p><span className="font-medium">公司：</span>{itemToDelete.company}</p>
+                    <p><span className="font-medium">职位：</span>{itemToDelete.position}</p>
+                    <p><span className="font-medium">状态：</span>{itemToDelete.status}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDeleteConfirmOpen(false)
+                setItemToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              取消
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? '删除中...' : '确认删除'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

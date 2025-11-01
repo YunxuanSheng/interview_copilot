@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowLeft, Calendar, Building, FileText, Plus, Mic, Upload, Sparkles, Edit, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -36,6 +37,7 @@ interface Question {
 export default function NewInterviewPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [isLoading, setIsLoading] = useState(false)
@@ -69,12 +71,34 @@ export default function NewInterviewPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [isEditingAiAnalysis, setIsEditingAiAnalysis] = useState(false)
   const [currentStep, setCurrentStep] = useState<1 | 2>(1)
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+  const [showNextStepDialog, setShowNextStepDialog] = useState(false)
 
   useEffect(() => {
     if (session) {
       fetchSchedules()
     }
   }, [session])
+
+  // 从URL参数中获取transcript和taskId
+  useEffect(() => {
+    const transcriptParam = searchParams.get('transcript')
+    const taskIdParam = searchParams.get('taskId')
+    
+    if (transcriptParam) {
+      setFormData(prev => ({
+        ...prev,
+        transcript: decodeURIComponent(transcriptParam)
+      }))
+      // 如果有transcript，直接跳转到步骤2
+      setCurrentStep(2)
+      toast.success("转录内容已加载，可以开始AI分析")
+    }
+    
+    if (taskIdParam) {
+      setCurrentTaskId(taskIdParam)
+    }
+  }, [searchParams])
 
   const fetchSchedules = async () => {
     try {
@@ -98,17 +122,18 @@ export default function NewInterviewPage() {
       return false
     }
 
-    // 验证文件大小（100MB限制，超过25MB会提示分段处理）
-    const maxSize = 100 * 1024 * 1024 // 100MB
-    const whisperLimit = 25 * 1024 * 1024 // 25MB (Whisper API限制)
+    // 验证文件大小（通义千问ASR限制：10MB）
+    const maxSize = 10 * 1024 * 1024 // 10MB（通义千问ASR要求）
     
     if (file.size > maxSize) {
-      toast.error("文件过大，请上传小于 100MB 的音频文件")
+      toast.error(`文件过大: ${(file.size / 1024 / 1024).toFixed(2)}MB。通义千问ASR要求文件不超过10MB，且时长不超过3分钟。请使用FFmpeg压缩或裁剪。`)
       return false
     }
     
-    if (file.size > whisperLimit) {
-      toast.warning(`文件较大（${(file.size / 1024 / 1024).toFixed(1)}MB），建议压缩到25MB以下以获得最佳效果`)
+    // 检查文件扩展名，对M4A格式给出特别提示
+    const fileExt = file.name.toLowerCase().split('.').pop()
+    if (fileExt === 'm4a') {
+      toast.warning("M4A格式可能因编码参数不兼容而失败。如遇错误，请使用FFmpeg转换为MP3：ffmpeg -i input.m4a -ac 1 -ar 16000 -f mp3 output.mp3", { duration: 8000 })
     }
 
     // 清理之前的文件URL
@@ -180,34 +205,35 @@ export default function NewInterviewPage() {
     
     try {
       // 创建FormData来上传文件
-      const formData = new FormData()
-      formData.append('audio', audioFile)
+      const uploadFormData = new FormData()
+      uploadFormData.append('audio', audioFile)
+      // 如果有scheduleId，也传递过去（用于关联）
+      if (formData.scheduleId) {
+        uploadFormData.append('scheduleId', formData.scheduleId)
+      }
       
-      // 调用真实的语音转文字API
+      // 调用异步任务API
       const response = await fetch('/api/ai', {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
         // 不设置Content-Type，让浏览器自动设置multipart/form-data边界
       })
 
       if (response.ok) {
         const result = await response.json()
-        if (result.success) {
-          // 处理包含说话人信息的转录结果
-          const transcriptData = result.data
-          setFormData(prev => ({ ...prev, transcript: transcriptData.transcript }))
+        if (result.success && result.taskId) {
+          // 任务已创建
+          setCurrentTaskId(result.taskId)
+          toast.success(`任务已提交，预计需要 ${result.estimatedDuration} 分钟。完成后会收到通知提醒。`)
           
-          // 显示说话人识别结果
-          if (transcriptData.speakers && transcriptData.speakers.length > 0) {
-            toast.success(`语音转文字完成！识别出 ${transcriptData.speakers.length} 个说话人：${transcriptData.speakers.join('、')}`)
-          } else {
-            toast.success("语音转文字完成")
-          }
+          // 用户现在可以离开页面，任务会在后台处理
+          setIsUploading(false)
         } else {
-          throw new Error(result.message || "转文字失败")
+          throw new Error(result.message || "创建任务失败")
         }
       } else {
-        throw new Error("转文字服务暂时不可用")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || "转文字服务暂时不可用")
       }
     } catch (error) {
       console.error("Transcribe error:", error)
@@ -221,72 +247,32 @@ export default function NewInterviewPage() {
           errorMessage = "不支持的文件类型，请上传支持的音频格式"
         } else if (error.message.includes("Network")) {
           errorMessage = "网络错误，请检查网络连接后重试"
+        } else {
+          errorMessage = error.message
         }
       }
       
       toast.error(errorMessage)
-      
-      // 如果真实API失败，提供模拟数据作为fallback
-      const mockTranscript = `
-面试官：你好，请先自我介绍一下。
-
-候选人：你好，我是张三，有3年前端开发经验，主要使用React和Vue框架开发过多个项目。我毕业于计算机科学专业，在校期间就接触了前端开发，毕业后一直专注于前端技术栈的学习和实践。
-
-面试官：能说说你对React的理解吗？
-
-候选人：React是一个用于构建用户界面的JavaScript库，它使用虚拟DOM来提高性能，支持组件化开发。React的核心概念包括组件、状态、属性、生命周期等。我在项目中主要使用函数式组件和Hooks，比如useState、useEffect、useContext等。React的虚拟DOM机制可以最小化DOM操作，提高渲染性能。
-
-面试官：如何优化React应用性能？
-
-候选人：React性能优化可以从多个方面入手。首先是组件层面，可以使用React.memo来避免不必要的重渲染，useMemo和useCallback来缓存计算结果和函数。其次是代码分割，使用React.lazy和Suspense实现按需加载。还有列表渲染优化，使用key属性，避免在render中创建新对象。另外还有状态管理优化，合理使用useState和useReducer，避免状态过于复杂。
-
-面试官：能介绍一下你最近的项目吗？
-
-候选人：最近做了一个电商平台的前端项目，使用了React + TypeScript + Ant Design，实现了用户管理、商品展示、购物车等功能。项目采用微前端架构，主应用使用single-spa，子应用独立开发和部署。我负责商品模块的开发，包括商品列表、详情页、搜索筛选等功能。在性能优化方面，我使用了虚拟滚动来处理大量商品数据，图片懒加载减少首屏加载时间。
-
-面试官：在项目中遇到过哪些技术难点，是如何解决的？
-
-候选人：最大的难点是商品搜索的性能问题。当用户输入搜索关键词时，需要实时搜索并展示结果，但商品数据量很大，直接遍历会很慢。我采用了防抖技术，延迟300ms执行搜索，避免频繁请求。同时使用Web Worker在后台进行搜索计算，不阻塞主线程。还实现了搜索结果的缓存机制，相同关键词直接返回缓存结果。
-
-面试官：你了解哪些前端工程化工具？
-
-候选人：我熟悉Webpack、Vite等打包工具，了解它们的配置和优化。使用过ESLint、Prettier进行代码规范，Husky做Git钩子，Jest做单元测试。在CI/CD方面，使用过GitHub Actions和Jenkins。还了解过微前端方案，比如qiankun、single-spa等。
-
-面试官：对TypeScript有什么理解？
-
-候选人：TypeScript是JavaScript的超集，提供了静态类型检查。我在项目中大量使用TypeScript，可以提前发现类型错误，提高代码质量。我熟悉接口定义、泛型、联合类型、交叉类型等概念。TypeScript的智能提示和重构功能也大大提高了开发效率。
-
-面试官：你如何保证代码质量？
-
-候选人：首先建立代码规范，使用ESLint和Prettier统一代码风格。其次编写单元测试，使用Jest和React Testing Library测试组件功能。还有代码审查，通过Pull Request进行同行评审。最后是持续集成，每次提交都自动运行测试和构建，确保代码质量。
-
-面试官：你平时如何学习新技术？
-
-候选人：我主要通过官方文档、技术博客、开源项目来学习新技术。会关注一些技术社区，比如掘金、思否等。也会通过实际项目来实践新技术，遇到问题会查阅资料或向同事请教。还会参加一些技术会议和线上分享，了解行业动态。
-
-面试官：你对前端发展趋势有什么看法？
-
-候选人：我认为前端正在向全栈方向发展，Node.js让前端可以处理服务端逻辑。微前端架构也越来越成熟，可以更好地支持大型应用。还有WebAssembly、PWA等新技术，让前端应用更接近原生体验。另外，低代码平台和无代码工具也在兴起，可能会改变前端开发的模式。
-
-面试官：你有什么问题要问我们吗？
-
-候选人：我想了解一下公司的技术栈和团队规模，以及这个岗位的具体职责。还有公司对新技术的接受程度，是否有技术分享和学习的氛围。
-
-面试官：我们主要使用React + Node.js的技术栈，团队有20人左右，这个岗位主要负责前端开发。我们鼓励技术创新，每周都有技术分享会。
-
-候选人：听起来很不错，我很期待能加入这样的团队。
-
-面试官：好的，今天的面试就到这里，我们会在一周内给你回复。
-
-候选人：谢谢，期待您的回复。
-      `
-      
-      setFormData(prev => ({ ...prev, transcript: mockTranscript.trim() }))
-      toast.info("使用模拟数据，请手动调整内容")
-    } finally {
       setIsUploading(false)
     }
   }
+
+  // 任务完成回调，自动填充转录结果
+  const handleTaskComplete = useCallback((transcript: string) => {
+    setFormData(prev => {
+      // 如果已经有内容，不覆盖（避免重复填充）
+      if (prev.transcript && prev.transcript.trim()) {
+        return prev
+      }
+      return { ...prev, transcript }
+    })
+    toast.success("语音转文字完成！")
+    // 可以选择自动进入下一步
+    if (currentStep === 1) {
+      setCurrentStep(2)
+    }
+  }, [currentStep])
+
 
   const handleAnalyze = async () => {
     if (!formData.transcript) {
@@ -804,7 +790,10 @@ export default function NewInterviewPage() {
                   点击上传或拖拽录音文件到此处
                 </p>
                 <p className="text-xs text-gray-500 mb-4">
-                  支持 MP3、WAV、M4A、OGG、WebM 格式，最大 100MB
+                  支持 MP3、WAV、M4A、OGG、WebM 格式，最大 10MB，时长≤3分钟
+                </p>
+                <p className="text-xs text-amber-600 mb-2">
+                  ⚠️ 推荐使用 MP3 或 WAV 格式（最兼容）。M4A 可能需要特定参数（16kHz，单声道），如失败请使用 FFmpeg 转换。
                 </p>
                 <Button 
                   onClick={(e) => {
@@ -868,14 +857,20 @@ export default function NewInterviewPage() {
             <div className="flex gap-4">
               <Button 
                 className="flex-1" 
-                onClick={() => setCurrentStep(2)}
+                onClick={() => {
+                  if (currentTaskId) {
+                    setShowNextStepDialog(true)
+                  } else {
+                    setCurrentStep(2)
+                  }
+                }}
                 disabled={!formData.transcript}
               >
                 下一步
               </Button>
               {!formData.transcript && (
                 <div className="flex-1 text-xs text-gray-500 self-center">
-                  完成“语音转文字”后方可进入下一步
+                  完成"语音转文字"后方可进入下一步
                 </div>
               )}
               <Button variant="outline" asChild>
@@ -1223,6 +1218,50 @@ export default function NewInterviewPage() {
           </div>
         </div>
       )}
+
+      {/* 下一步提示弹窗 */}
+      <Dialog open={showNextStepDialog} onOpenChange={setShowNextStepDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>语音转文字进行中</DialogTitle>
+            <DialogDescription>
+              您的录音正在后台处理中，完成后会收到通知提醒
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-sm font-medium">预计处理时间：5-15分钟</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-sm font-medium">接下来的步骤：</span>
+              </div>
+            </div>
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <p>1. 在面试复盘页面查看转录进度</p>
+              <p>2. 转录完成后，点击"去做AI分析"按钮</p>
+              <p>3. AI将自动分析您的面试表现并生成反馈</p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+              <p className="font-medium mb-1">💡 提示</p>
+              <p>您可以随时在面试复盘页面查看任务状态和完成后续操作</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNextStepDialog(false)}>
+              继续编辑
+            </Button>
+            <Button onClick={() => {
+              setShowNextStepDialog(false)
+              router.push("/interviews")
+            }}>
+              前往面试复盘页面
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

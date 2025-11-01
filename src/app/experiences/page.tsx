@@ -89,16 +89,6 @@ export default function ExperiencesPage() {
     }
   }
 
-  const groupedExperiences = filteredExperiences.reduce((acc, experience) => {
-    const type = experience.questionType
-    if (!acc[type]) {
-      acc[type] = []
-    }
-    acc[type].push(experience)
-    return acc
-  }, {} as Record<string, PersonalExperience[]>)
-
-
   // 获取所有标签
   const allTags = Array.from(new Set(
     experiences
@@ -172,35 +162,6 @@ export default function ExperiencesPage() {
             添加面经
           </Link>
         </Button>
-      </div>
-
-      {/* 数据看板 */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <BookOpen className="h-6 w-6 mx-auto mb-1 text-gray-600" />
-              <p className="text-sm font-medium text-gray-600">总题目</p>
-              <p className="text-xl font-bold text-gray-900">{experiences.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {questionTypes.map(type => {
-          const count = experiences.filter(e => e.questionType === type.value).length
-          const Icon = type.icon
-          return (
-            <Card key={type.value}>
-              <CardContent className="pt-4 pb-4">
-                <div className="text-center">
-                  <Icon className={`h-6 w-6 mx-auto mb-1 ${type.color}`} />
-                  <p className="text-sm font-medium text-gray-600">{type.label}</p>
-                  <p className="text-xl font-bold text-gray-900">{count}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
       </div>
 
       {/* Filters */}
@@ -278,120 +239,87 @@ export default function ExperiencesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">全部 ({filteredExperiences.length})</TabsTrigger>
-            {questionTypes.map(type => {
-              const count = groupedExperiences[type.value]?.length || 0
-              return (
-                <TabsTrigger key={type.value} value={type.value}>
-                  {type.label} ({count})
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
-
-          <TabsContent value="all" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredExperiences.map((experience) => {
-                const typeInfo = getQuestionTypeInfo(experience.questionType)
-                const Icon = typeInfo.icon
-                return (
-                  <Card key={experience.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <Icon className={`w-4 h-4 ${typeInfo.color}`} />
-                          <CardTitle className="text-lg">{experience.company}</CardTitle>
-                        </div>
-                        {getDifficultyBadge(experience.difficulty)}
-                      </div>
-                      <CardDescription>
-                        {typeInfo.label} · {format(new Date(experience.createdAt), "yyyy-MM-dd", { locale: zhCN })}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 mb-1">题目：</p>
-                        <p className="text-sm text-gray-700 line-clamp-3">
-                          {experience.questionText}
-                        </p>
-                      </div>
-                      
-                      {experience.answerText && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 mb-1">答案：</p>
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {experience.answerText}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="pt-2">
-                        <Button asChild variant="outline" size="sm" className="w-full">
-                          <Link href={`/experiences/${experience.id}`}>
-                            查看详情
-                          </Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </TabsContent>
-
-          {questionTypes.map(type => (
-            <TabsContent key={type.value} value={type.value} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {(groupedExperiences[type.value] || []).map((experience) => {
-                  const Icon = type.icon
-                  return (
-                    <Card key={experience.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">公司</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">题目类型</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">题目</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">答案</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">难度</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">标签</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">创建时间</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredExperiences.map((experience) => {
+                    const typeInfo = getQuestionTypeInfo(experience.questionType)
+                    const Icon = typeInfo.icon
+                    return (
+                      <tr key={experience.id} className="border-b hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-medium">{experience.company}</div>
+                        </td>
+                        <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <Icon className={`w-4 h-4 ${type.color}`} />
-                            <CardTitle className="text-lg">{experience.company}</CardTitle>
+                            <Icon className={`w-4 h-4 ${typeInfo.color}`} />
+                            <span>{typeInfo.label}</span>
                           </div>
-                          {getDifficultyBadge(experience.difficulty)}
-                        </div>
-                        <CardDescription>
-                          {format(new Date(experience.createdAt), "yyyy-MM-dd", { locale: zhCN })}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 mb-1">题目：</p>
-                          <p className="text-sm text-gray-700 line-clamp-3">
+                        </td>
+                        <td className="py-3 px-4">
+                          <p className="text-sm text-gray-700 line-clamp-2 max-w-md">
                             {experience.questionText}
                           </p>
-                        </div>
-                        
-                        {experience.answerText && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 mb-1">答案：</p>
-                            <p className="text-sm text-gray-600 line-clamp-2">
+                        </td>
+                        <td className="py-3 px-4">
+                          {experience.answerText ? (
+                            <p className="text-sm text-gray-600 line-clamp-2 max-w-md">
                               {experience.answerText}
                             </p>
-                          </div>
-                        )}
-
-                        <div className="pt-2">
-                          <Button asChild variant="outline" size="sm" className="w-full">
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {getDifficultyBadge(experience.difficulty)}
+                        </td>
+                        <td className="py-3 px-4">
+                          {experience.tags ? (
+                            <div className="flex flex-wrap gap-1">
+                              {experience.tags.split(',').map((tag, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {tag.trim()}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-sm text-gray-600">
+                            {format(new Date(experience.createdAt), "yyyy-MM-dd", { locale: zhCN })}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Button asChild variant="outline" size="sm">
                             <Link href={`/experiences/${experience.id}`}>
                               查看详情
                             </Link>
                           </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
     </div>
