@@ -4,14 +4,6 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
-// 本地开发时自动修正 NEXTAUTH_URL
-const getNextAuthUrl = () => {
-  if (process.env.NODE_ENV === 'development') {
-    return process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  }
-  return process.env.NEXTAUTH_URL
-}
-
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
@@ -149,14 +141,14 @@ export const authOptions = {
       return session
     },
     // 添加 signIn callback 来处理错误
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile: _profile }) {
       console.log("[Auth] signIn callback called:", { user, account: account?.provider })
       return true
     }
   },
   // 添加事件处理来记录错误
   events: {
-    async signIn({ user, account, profile, isNewUser }: { user: any; account: any; profile?: any; isNewUser?: boolean }) {
+    async signIn({ user, account, profile: _profile, isNewUser }: { user: any; account: any; profile?: any; isNewUser?: boolean }) {
       console.log("[Auth] User signed in:", { 
         userId: user.id, 
         email: user.email, 
