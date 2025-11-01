@@ -278,6 +278,13 @@ function NewInterviewSharingPageContent() {
       return
     }
 
+    console.log('提交时检查:', {
+      selectedQuestions: formData.selectedQuestions,
+      selectedQuestionsLength: formData.selectedQuestions.length,
+      questionsLength: formData.questions.length,
+      privacyProcessedLength: privacyProcessedQuestions.length
+    })
+
     if (formData.selectedQuestions.length === 0) {
       alert('请至少选择一个问题进行分享')
       return
@@ -285,38 +292,98 @@ function NewInterviewSharingPageContent() {
 
     setLoading(true)
     try {
-      // 使用已处理的隐私数据
-      const selectedQuestions = privacyProcessedQuestions.filter((_, index) => 
-        formData.selectedQuestions.includes(index)
-      )
+      // 优先使用已处理的隐私数据，如果还没准备好则使用原始问题
+      let selectedQuestions
+      if (privacyProcessedQuestions.length > 0 && privacyProcessedQuestions.length === formData.questions.length) {
+        // 使用已处理的隐私数据
+        selectedQuestions = privacyProcessedQuestions.filter((_, index) => 
+          formData.selectedQuestions.includes(index)
+        )
+      } else {
+        // 如果隐私处理还没完成，使用原始问题并立即处理
+        console.log('隐私处理数据未准备好，使用原始问题:', formData.selectedQuestions)
+        const originalSelected = formData.questions.filter((_, index) => 
+          formData.selectedQuestions.includes(index)
+        )
+        // 使用同步的隐私处理作为后备
+        selectedQuestions = originalSelected.map(q => ({
+          ...q,
+          text: maskSensitiveInfo(typeof q === 'string' ? q : q.text || q.question || '')
+        }))
+      }
       
-      // 确保有选择的问题
+      // 确保有选择的问题（双重验证）
       if (selectedQuestions.length === 0) {
-        alert('请至少选择一个问题进行分享')
+        console.error('问题选择验证失败:', {
+          formDataSelectedQuestions: formData.selectedQuestions,
+          questionsLength: formData.questions.length,
+          privacyProcessedLength: privacyProcessedQuestions.length,
+          selectedQuestionsLength: selectedQuestions.length
+        })
+        alert('请至少选择一个问题进行分享（验证失败，请刷新页面后重试）')
         setLoading(false)
         return
       }
       
+      // 验证选中的索引是否有效
+      const invalidIndices = formData.selectedQuestions.filter(idx => idx < 0 || idx >= formData.questions.length)
+      if (invalidIndices.length > 0) {
+        console.error('发现无效的问题索引:', invalidIndices)
+        alert('问题选择无效，请重新选择问题')
+        setLoading(false)
+        return
+      }
+      
+      // 格式化问题数据，确保每个问题都有有效的文本
+      // 统一格式为对象格式 { text: string }
+      const formattedQuestions = selectedQuestions.map(q => {
+        let text = ''
+        if (typeof q === 'string') {
+          text = q.trim()
+        } else if (q && typeof q === 'object') {
+          text = (q.text || q.question || '').trim()
+        }
+        
+        if (!text || text.length === 0) {
+          console.warn('发现空问题，已跳过:', q)
+          return null
+        }
+        
+        return { text }
+      }).filter(q => q !== null && q !== undefined) as Array<{ text: string }>
+      
+      if (formattedQuestions.length === 0) {
+        alert('选中的问题中没有有效内容，请重新选择')
+        setLoading(false)
+        return
+      }
+      
+      console.log('准备发送的问题数据:', formattedQuestions)
+      
       // 使用已处理的隐私数据，无需重复处理
-      const maskedPreview = { questions: selectedQuestions }
+      const maskedPreview = { questions: formattedQuestions }
+      
+      const requestData = {
+        ...formData,
+        interviewRecordId: selectedRecord?.id,
+        // 根据隐私设置决定是否发送日期和轮次信息
+        interviewDate: formData.hideInterviewDate ? null : new Date(formData.interviewDate).toISOString(),
+        round: formData.hideInterviewRound ? null : formData.round,
+        // 只发送选中的问题，不发送回答
+        questions: maskedPreview.questions,
+        answers: [], // 不分享回答内容
+        // 简化的隐私设置
+        selectedQuestions: formData.selectedQuestions
+      }
+      
+      console.log('准备发送的完整请求数据:', requestData)
       
       const response = await fetch('/api/interview-sharings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...formData,
-          interviewRecordId: selectedRecord?.id,
-          // 根据隐私设置决定是否发送日期和轮次信息
-          interviewDate: formData.hideInterviewDate ? null : new Date(formData.interviewDate).toISOString(),
-          round: formData.hideInterviewRound ? null : formData.round,
-          // 只发送选中的问题，不发送回答
-          questions: maskedPreview.questions,
-          answers: [], // 不分享回答内容
-          // 简化的隐私设置
-          selectedQuestions: formData.selectedQuestions
-        })
+        body: JSON.stringify(requestData)
       })
 
       const data = await response.json()

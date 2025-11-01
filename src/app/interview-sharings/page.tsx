@@ -434,7 +434,7 @@ export default function InterviewSharingsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-3 relative pb-24">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="w-4 h-4 mr-1" />
                       {formatDate(sharing.interviewDate)}
@@ -459,45 +459,46 @@ export default function InterviewSharingsPage() {
                       </div>
                     </div>
 
-                    {sharing.tips && (
+                    {sharing.tips && sharing.tips.trim() && (
                       <div className="text-sm">
                         <p className="font-medium text-gray-700 mb-1">面试建议：</p>
                         <p className="text-xs text-gray-600 line-clamp-2">{sharing.tips}</p>
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <Eye className="w-3 h-3 mr-1" />
-                          {sharing.viewCount}
+                    <div className="absolute bottom-0 left-0 right-0">
+                      <div className="flex items-center justify-between pt-3 pb-2 border-t mb-2">
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <div className="flex items-center">
+                            <Eye className="w-3 h-3 mr-1" />
+                            {sharing.viewCount}
+                          </div>
+                          <div className="flex items-center">
+                            <Heart className="w-3 h-3 mr-1" />
+                            {sharing.likeCount}
+                          </div>
                         </div>
-                        <div className="flex items-center">
-                          <Heart className="w-3 h-3 mr-1" />
-                          {sharing.likeCount}
+                        <div className="flex items-center text-xs text-gray-500">
+                          <User className="w-3 h-3 mr-1" />
+                          {sharing.isAnonymous ? '匿名用户' : (sharing.user.name || '匿名用户')}
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <User className="w-3 h-3 mr-1" />
-                        {sharing.isAnonymous ? '匿名用户' : (sharing.user.name || '匿名用户')}
-                      </div>
-                    </div>
-
-                    <div className="flex space-x-2 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 bg-white text-black border-gray-300 hover:bg-gray-50"
-                        onClick={() => handleLike(sharing.id)}
-                      >
-                        <Heart className={`w-4 h-4 mr-1 ${likedSharing.has(sharing.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                        {likedSharing.has(sharing.id) ? '已赞' : '点赞'}
-                      </Button>
-                      <Link href={`/interview-sharings/${sharing.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full bg-white text-black border-gray-300 hover:bg-gray-50">
-                          查看详情
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 bg-white text-black border-gray-300 hover:bg-gray-50"
+                          onClick={() => handleLike(sharing.id)}
+                        >
+                          <Heart className={`w-4 h-4 mr-1 ${likedSharing.has(sharing.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                          {likedSharing.has(sharing.id) ? '已赞' : '点赞'}
                         </Button>
-                      </Link>
+                        <Link href={`/interview-sharings/${sharing.id}`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full bg-white text-black border-gray-300 hover:bg-gray-50">
+                            查看详情
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -605,7 +606,7 @@ export default function InterviewSharingsPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
+                      <div className="space-y-3 min-h-[200px] flex flex-col">
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(sharing.interviewDate)}
@@ -613,7 +614,7 @@ export default function InterviewSharingsPage() {
                           第{sharing.round}轮
                         </div>
                         
-                        <div className="text-sm text-gray-700">
+                        <div className="text-sm text-gray-700 flex-1">
                           <p className="font-medium mb-1">面试问题：</p>
                           <div className="space-y-1">
                             {(() => {
@@ -637,7 +638,7 @@ export default function InterviewSharingsPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between pt-3 border-t">
+                        <div className="flex items-center justify-between pt-3 border-t mt-auto">
                           <div className="flex items-center space-x-4 text-xs text-gray-500">
                             <div className="flex items-center">
                               <Eye className="w-3 h-3 mr-1" />
@@ -781,7 +782,7 @@ export default function InterviewSharingsPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
+                      <div className="space-y-3 min-h-[200px] flex flex-col">
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(sharing.interviewDate)}
@@ -789,7 +790,7 @@ export default function InterviewSharingsPage() {
                           第{sharing.round}轮
                         </div>
                         
-                        <div className="text-sm text-gray-700">
+                        <div className="text-sm text-gray-700 flex-1">
                           <p className="font-medium mb-1">面试问题：</p>
                           <div className="space-y-1">
                             {(() => {
@@ -813,7 +814,7 @@ export default function InterviewSharingsPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between pt-3 border-t">
+                        <div className="flex items-center justify-between pt-3 border-t mt-auto">
                           <div className="flex items-center space-x-4 text-xs text-gray-500">
                             <div className="flex items-center">
                               <Eye className="w-3 h-3 mr-1" />
