@@ -141,7 +141,7 @@ export const authOptions = {
       return session
     },
     // 添加 signIn callback 来处理错误
-    async signIn({ user, account, profile: _profile }) {
+    async signIn({ user, account, profile: _profile }: { user: any; account: any; profile?: any }) {
       console.log("[Auth] signIn callback called:", { user, account: account?.provider })
       return true
     }
