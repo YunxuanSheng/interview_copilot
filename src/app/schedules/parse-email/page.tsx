@@ -71,6 +71,14 @@ export default function EmailParsePage() {
       if (response.ok) {
         const result = await response.json()
         const data = result.data
+        
+        // 检查 data 是否存在
+        if (!data) {
+          console.error("Parse email result:", result)
+          toast.error("解析失败：服务器返回的数据为空")
+          return
+        }
+        
         // 确保轮次有默认值
         if (!data.round || data.round === 0) {
           data.round = 1
@@ -89,7 +97,9 @@ export default function EmailParsePage() {
         })
         toast.success("邮件解析成功！")
       } else {
-        toast.error("解析失败，请重试")
+        const errorData = await response.json().catch(() => ({}))
+        console.error("Parse email error:", response.status, errorData)
+        toast.error(errorData.message || "解析失败，请重试")
       }
     } catch (error) {
       console.error("Parse email error:", error)

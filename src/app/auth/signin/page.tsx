@@ -22,25 +22,46 @@ export default function SignIn() {
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // 验证输入
+    if (!email || !password) {
+      alert("请填写邮箱和密码")
+      return
+    }
+    
     setIsLoading(true)
     
     try {
+      console.log("Attempting credentials sign in for:", email)
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       })
       
+      console.log("Sign in result:", result)
+      
       if (result?.ok) {
         // 登录成功，跳转到首页
+        console.log("Login successful, redirecting...")
         router.push("/")
         router.refresh()
       } else {
-        alert("登录失败，请检查邮箱和密码")
+        // 显示更详细的错误信息
+        const errorMessage = result?.error || "登录失败"
+        console.error("Login failed:", errorMessage)
+        
+        if (errorMessage === "CredentialsSignin") {
+          alert("邮箱或密码错误，请检查后重试")
+        } else if (errorMessage.includes("database") || errorMessage.includes("connect")) {
+          alert("数据库连接失败，请检查配置")
+        } else {
+          alert(`登录失败: ${errorMessage}`)
+        }
       }
     } catch (error) {
       console.error("Sign in error:", error)
-      alert("登录出错，请稍后重试")
+      alert(`登录出错: ${error instanceof Error ? error.message : "未知错误"}`)
     } finally {
       setIsLoading(false)
     }

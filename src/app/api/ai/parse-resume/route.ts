@@ -4,8 +4,11 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { checkAndRecordAiUsage } from '@/lib/ai-usage'
 
+// 使用通义千问OpenAI兼容模式
+const apiKey = process.env.DASHSCOPE_API_KEY || process.env.OPENAI_API_KEY
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: apiKey,
+  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
 })
 
 export async function POST(request: NextRequest) {
@@ -141,7 +144,7 @@ async function parseResumeWithAI(resumeText: string) {
 ${resumeText}`
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "qwen-turbo",
       messages: [
         {
           role: "system",

@@ -72,7 +72,7 @@ export async function POST(
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "qwen-turbo",
       messages: [
         {
           role: "system",

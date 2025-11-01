@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
+// 使用通义千问OpenAI兼容模式
+const apiKey = process.env.DASHSCOPE_API_KEY || process.env.OPENAI_API_KEY
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: apiKey,
+  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
 })
 
 export async function POST(request: NextRequest) {
@@ -16,10 +19,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!apiKey) {
       return NextResponse.json({
         success: false,
-        error: 'OpenAI API密钥未设置',
+        error: 'DASHSCOPE_API_KEY 环境变量未设置',
         processedQuestions: []
       })
     }
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // 使用AI进行批量隐私处理
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "qwen-turbo",
       messages: [
         {
           role: "system",

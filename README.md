@@ -17,7 +17,7 @@
 - **后端**: Next.js API Routes, Prisma ORM
 - **数据库**: SQLite (开发) / PostgreSQL (生产)
 - **认证**: NextAuth.js
-- **AI服务**: OpenAI API (语音转文字 + 文本分析)
+- **AI服务**: 通义千问 API (语音转文字 + 文本分析) / OpenAI API (可选)
 
 ## 快速开始
 
@@ -57,8 +57,11 @@
    GOOGLE_CLIENT_ID="your-google-client-id"
    GOOGLE_CLIENT_SECRET="your-google-client-secret"
    
-   # OpenAI API (可选)
-   OPENAI_API_KEY="your-openai-api-key"
+   # 通义千问 API (推荐，国内使用)
+   DASHSCOPE_API_KEY="sk-your-dashscope-api-key"
+   
+   # 或使用 OpenAI API (可选，需要代理)
+   # OPENAI_API_KEY="your-openai-api-key"
    ```
 
 4. **初始化数据库**
@@ -192,7 +195,8 @@ NEXTAUTH_URL="https://your-domain.com"
 NEXTAUTH_SECRET="your-production-secret"
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
-OPENAI_API_KEY="your-openai-api-key"
+DASHSCOPE_API_KEY="sk-your-dashscope-api-key"
+# OPENAI_API_KEY="your-openai-api-key"  # 可选，作为备用
 ```
 
 ## 开发指南
