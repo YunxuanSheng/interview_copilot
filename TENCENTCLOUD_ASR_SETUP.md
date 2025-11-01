@@ -8,8 +8,10 @@
 
 ```env
 # 腾讯云语音识别配置（必需）
-TENCENTCLOUD_SECRET_ID=AKIDRyLYYR9IRcifQE1hBTYREpDQQCwb8Zrw
-TENCENTCLOUD_SECRET_KEY=whFarwnRq1zjFWYMyOl7YQ7aqtiIemgR
+# 请在腾讯云控制台获取您的 SecretId 和 SecretKey
+# https://console.cloud.tencent.com/cam/capi
+TENCENTCLOUD_SECRET_ID=your-tencent-cloud-secret-id
+TENCENTCLOUD_SECRET_KEY=your-tencent-cloud-secret-key
 ```
 
 ## 🎯 功能特点
