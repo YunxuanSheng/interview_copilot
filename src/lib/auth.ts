@@ -129,6 +129,19 @@ export const authOptions = {
         token.id = user.id
         token.email = user.email
         token.name = user.name
+        
+        // 从数据库获取用户角色
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id }
+          })
+          token.role = (dbUser as any)?.role || "user"
+          token.isActive = (dbUser as any)?.isActive ?? true
+        } catch (error) {
+          console.error("[Auth] Failed to fetch user role:", error)
+          token.role = "user"
+          token.isActive = true
+        }
       }
       return token
     },
@@ -137,6 +150,8 @@ export const authOptions = {
         session.user.id = token.id as string
         session.user.email = token.email as string
         session.user.name = token.name as string
+        session.user.role = token.role as string || "user"
+        session.user.isActive = token.isActive as boolean ?? true
       }
       return session
     },

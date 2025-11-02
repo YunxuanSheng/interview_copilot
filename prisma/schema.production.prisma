@@ -16,6 +16,8 @@ model User {
   phone               String?
   location            String?
   summary             String?
+  role                String               @default("user") // "user" | "admin"
+  isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   accounts            Account[]
@@ -31,6 +33,7 @@ model User {
   userCredits         UserCredits?
   interviewSharings   InterviewSharing[]
   interviewLikes      InterviewLike[]
+  modelCallLogs       ModelCallLog[]
 
   @@map("users")
 }
@@ -287,6 +290,27 @@ model AiUsageStat {
 
   @@unique([userId, serviceType])
   @@map("ai_usage_stats")
+}
+
+model ModelCallLog {
+  id            String   @id @default(cuid())
+  userId        String
+  serviceType   String   // 服务类型
+  modelName     String   // 模型名称，如 'qwen-turbo', 'gpt-4', 'gpt-3.5-turbo'
+  provider      String   @default("dashscope") // 提供商: 'dashscope', 'openai', 'tencent'
+  promptTokens  Int?     // 输入 tokens
+  completionTokens Int?  // 输出 tokens
+  totalTokens   Int?     // 总 tokens
+  estimatedCost Float?   // 估算成本（人民币）
+  creditsUsed   Int      @default(0) // 使用的 credits
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([serviceType])
+  @@index([modelName])
+  @@index([createdAt])
+  @@map("model_call_logs")
 }
 
 model UserCredits {

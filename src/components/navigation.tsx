@@ -26,7 +26,8 @@ import {
   Share2,
   Settings,
   Bell,
-  Trash2
+  Trash2,
+  Shield
 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 
@@ -165,6 +166,9 @@ export default function Navigation() {
     return () => clearInterval(interval)
   }, [session?.user, fetchNotifications])
 
+  // 检查是否为管理员
+  const isAdmin = (session?.user as any)?.role === "admin"
+
   // 调试信息
   console.log("Navigation - Session status:", status)
   console.log("Navigation - Session data:", session)
@@ -205,6 +209,19 @@ export default function Navigation() {
                   </Link>
                 )
               })}
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                    pathname?.startsWith("/admin")
+                      ? "border-blue-500 text-gray-900"
+                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  }`}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  后台管理
+                </Link>
+              )}
             </div>
           </div>
 
@@ -349,6 +366,14 @@ export default function Navigation() {
                     用户管理
                   </Link>
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer">
+                      <Shield className="mr-2 h-4 w-4" />
+                      后台管理
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer"
@@ -405,6 +430,22 @@ export default function Navigation() {
                   </Link>
                 )
               })}
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`block pl-3 pr-4 py-2 text-base font-medium rounded-md transition-colors ${
+                    pathname?.startsWith("/admin")
+                      ? "bg-blue-50 border-blue-500 text-blue-700"
+                      : "border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <Shield className="w-5 h-5 mr-3" />
+                    后台管理
+                  </div>
+                </Link>
+              )}
             </div>
           </div>
         )}

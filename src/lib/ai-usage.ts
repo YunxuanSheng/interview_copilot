@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { checkCredits, deductCredits } from '@/lib/credits'
+import { checkCredits, deductCredits, CREDITS_COST } from '@/lib/credits'
+import { SERVICE_MODEL_MAP, estimateServiceCost, type ModelName } from '@/lib/model-cost'
 
 export type ServiceType = 'interview_analysis' | 'audio_transcription' | 'suggestion_generation' | 'job_parsing' | 'resume_parsing' | 'email_parsing'
 
@@ -67,6 +68,28 @@ export async function checkAndRecordAiUsage(userId: string, serviceType: Service
         lastUsed: new Date()
       }
     })
+
+    // 记录模型调用日志（估算成本）
+    const modelConfig = SERVICE_MODEL_MAP[serviceType]
+    if (modelConfig) {
+      const estimatedCost = estimateServiceCost(serviceType)
+      await prisma.modelCallLog.create({
+        data: {
+          userId,
+          serviceType,
+          modelName: modelConfig.model,
+          provider: modelConfig.model === 'tencent-asr' ? 'tencent' : 'dashscope',
+          promptTokens: modelConfig.estimatedPromptTokens || 0,
+          completionTokens: modelConfig.estimatedCompletionTokens || 0,
+          totalTokens: (modelConfig.estimatedPromptTokens || 0) + (modelConfig.estimatedCompletionTokens || 0),
+          estimatedCost,
+          creditsUsed: CREDITS_COST[serviceType as keyof typeof CREDITS_COST] || 0
+        }
+      }).catch(error => {
+        // 忽略记录失败，不影响主要功能
+        console.error('记录模型调用日志失败:', error)
+      })
+    }
 
     return { canUse: true }
   } catch (error) {
