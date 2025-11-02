@@ -180,6 +180,13 @@ export default function AdminLayout({
                 <BarChart3 className="w-5 h-5" />
                 <span>数据报表</span>
               </Link>
+              <Link
+                href="/admin/analytics"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+              >
+                <BarChart3 className="w-5 h-5" />
+                <span>埋点分析</span>
+              </Link>
             </nav>
           </aside>
 

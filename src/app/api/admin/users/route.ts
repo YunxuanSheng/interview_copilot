@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin"
 import { prisma } from "@/lib/prisma"
+import { getCreditsStatus } from "@/lib/credits"
 
 // 获取用户列表
 export async function GET(request: NextRequest) {
@@ -66,25 +67,27 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where })
     ])
 
-    // 获取每个用户的 Credits 余额
+    // 获取每个用户的 Credits 余额（使用 getCreditsStatus 确保数据准确）
     const usersWithCredits = await Promise.all(
       users.map(async (user) => {
-        const credits = await prisma.userCredits.findUnique({
-          where: { userId: user.id },
-          select: {
-            creditsBalance: true,
-            dailyUsed: true,
-            monthlyUsed: true
+        try {
+          const creditsStatus = await getCreditsStatus(user.id)
+          return {
+            ...user,
+            credits: {
+              balance: creditsStatus.creditsBalance,
+              dailyUsed: creditsStatus.dailyUsed,
+              monthlyUsed: creditsStatus.monthlyUsed,
+              dailyRemaining: creditsStatus.dailyRemaining,
+              monthlyRemaining: creditsStatus.monthlyRemaining
+            }
           }
-        })
-
-        return {
-          ...user,
-          credits: credits ? {
-            balance: credits.creditsBalance,
-            dailyUsed: credits.dailyUsed,
-            monthlyUsed: credits.monthlyUsed
-          } : null
+        } catch (error) {
+          console.error(`获取用户 ${user.id} 的credits状态失败:`, error)
+          return {
+            ...user,
+            credits: null
+          }
         }
       })
     )

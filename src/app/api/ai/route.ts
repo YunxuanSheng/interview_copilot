@@ -194,8 +194,15 @@ export async function POST(request: NextRequest) {
     } else if (action === 'parse_email' || type === 'parse-email') {
       // 检查credits
       if (userId) {
+        console.log(`[parse_email] 检查用户credits: userId=${userId}`)
         const creditsCheck = await checkAndRecordAiUsage(userId, 'email_parsing')
         if (!creditsCheck.canUse) {
+          console.log(`[parse_email] Credits检查失败:`, {
+            userId,
+            canUse: creditsCheck.canUse,
+            reason: creditsCheck.reason,
+            creditsInfo: creditsCheck.creditsInfo
+          })
           return NextResponse.json({
             success: false,
             error: 'Credits不足',
@@ -203,6 +210,11 @@ export async function POST(request: NextRequest) {
             creditsInfo: creditsCheck.creditsInfo
           }, { status: 402 })
         }
+        console.log(`[parse_email] Credits检查通过:`, {
+          userId,
+          creditsBalance: creditsCheck.creditsInfo?.creditsBalance,
+          serviceCost: 2
+        })
       }
 
       // 提取邮件内容

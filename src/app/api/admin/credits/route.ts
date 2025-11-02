@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin"
 import { prisma } from "@/lib/prisma"
-import { addCredits } from "@/lib/credits"
+import { addCredits, getCreditsStatus } from "@/lib/credits"
 
 // 获取所有用户的 Credits 统计
 export async function GET(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get("limit") || "50")
 
-    // 获取所有用户的 Credits 信息
+    // 获取所有用户的 Credits 信息（先获取基础数据）
     const userCredits = await prisma.userCredits.findMany({
       include: {
         user: {
@@ -27,26 +27,44 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: {
-        creditsBalance: "desc"
-      },
-      take: limit
+      take: limit * 2 // 多获取一些，因为排序可能变化
     })
 
-    // 获取统计信息
-    const [totalCredits, totalDailyUsed, totalMonthlyUsed, totalUsers] = await Promise.all([
-      prisma.userCredits.aggregate({
-        _sum: {
-          creditsBalance: true
+    // 使用 getCreditsStatus 获取最新的credits状态（确保数据准确）
+    const creditsWithStatus = await Promise.all(
+      userCredits.map(async (uc) => {
+        try {
+          const status = await getCreditsStatus(uc.userId)
+          return {
+            ...uc,
+            creditsBalance: status.creditsBalance,
+            dailyUsed: status.dailyUsed,
+            monthlyUsed: status.monthlyUsed
+          }
+        } catch (error) {
+          console.error(`获取用户 ${uc.userId} 的credits状态失败:`, error)
+          return uc
         }
-      }),
+      })
+    )
+
+    // 按最新余额排序
+    creditsWithStatus.sort((a, b) => b.creditsBalance - a.creditsBalance)
+
+    // 只取前 limit 名
+    const topCredits = creditsWithStatus.slice(0, limit)
+
+    // 获取统计信息（从最新数据计算）
+    const totalCredits = topCredits.reduce((sum, uc) => sum + uc.creditsBalance, 0)
+    const totalDailyUsed = topCredits.reduce((sum, uc) => sum + uc.dailyUsed, 0)
+    const totalMonthlyUsed = topCredits.reduce((sum, uc) => sum + uc.monthlyUsed, 0)
+    
+    // 获取全部用户的统计（用于显示总体数据）
+    const [allCreditsStats, totalUsers] = await Promise.all([
       prisma.userCredits.aggregate({
         _sum: {
-          dailyUsed: true
-        }
-      }),
-      prisma.userCredits.aggregate({
-        _sum: {
+          creditsBalance: true,
+          dailyUsed: true,
           monthlyUsed: true
         }
       }),
@@ -54,7 +72,7 @@ export async function GET(request: NextRequest) {
     ])
 
     // Credits 排行榜
-    const creditsRanking = userCredits.map((uc, index) => ({
+    const creditsRanking = topCredits.map((uc, index) => ({
       rank: index + 1,
       userId: uc.userId,
       email: uc.user.email,
@@ -70,9 +88,9 @@ export async function GET(request: NextRequest) {
       data: {
         ranking: creditsRanking,
         stats: {
-          totalCredits: totalCredits._sum.creditsBalance || 0,
-          totalDailyUsed: totalDailyUsed._sum.dailyUsed || 0,
-          totalMonthlyUsed: totalMonthlyUsed._sum.monthlyUsed || 0,
+          totalCredits: allCreditsStats._sum.creditsBalance || 0,
+          totalDailyUsed: allCreditsStats._sum.dailyUsed || 0,
+          totalMonthlyUsed: allCreditsStats._sum.monthlyUsed || 0,
           totalUsers
         }
       }

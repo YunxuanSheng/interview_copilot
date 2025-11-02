@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
+import { useAnalytics } from "@/hooks/useAnalytics"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -66,6 +67,7 @@ export default function Navigation() {
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const router = useRouter()
+  const { trackButtonClick } = useAnalytics()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [creditsStatus, setCreditsStatus] = useState<CreditsStatus | null>(null)
   const [creditsLoading, setCreditsLoading] = useState(false)
@@ -378,6 +380,9 @@ export default function Navigation() {
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={async () => {
+                    // 埋点：记录退出登录
+                    trackButtonClick('logout', { location: 'navigation_menu' })
+                    
                     await signOut({ redirect: false })
                     // 使用router进行跳转，避免白屏问题
                     router.push("/auth/signin")

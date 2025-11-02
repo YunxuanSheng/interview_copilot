@@ -35,6 +35,7 @@ model User {
   interviewLikes      InterviewLike[]
   transcriptionTasks  AudioTranscriptionTask[]
   modelCallLogs       ModelCallLog[]
+  eventLogs           EventLog[]
 
   @@map("users")
 }
@@ -395,4 +396,26 @@ model AudioTranscriptionTask {
   schedule          InterviewSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
   @@map("audio_transcription_tasks")
+}
+
+model EventLog {
+  id          String   @id @default(cuid())
+  userId      String?  // 可选，支持匿名访问
+  eventType   String   // 'page_view', 'button_click', 'feature_use', 'error', 'api_call'
+  eventName   String   // 具体事件名称，如 'interview_create', 'resume_upload'
+  properties  String?  // JSON格式存储额外属性
+  userAgent   String?  // 浏览器信息
+  ipAddress   String?  // IP地址（可以脱敏）
+  pageUrl     String?  // 页面URL
+  referrer    String?  // 来源页面
+  screenWidth Int?     // 屏幕宽度
+  screenHeight Int?    // 屏幕高度
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([eventName])
+  @@index([createdAt])
+  @@map("event_logs")
 }

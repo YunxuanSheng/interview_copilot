@@ -252,7 +252,21 @@ function AddSchedulePageContent() {
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error("Parse email error:", response.status, errorData)
-        toast.error(errorData.message || "解析失败，请重试")
+        
+        // 检查是否是credits相关错误
+        if (response.status === 402 || errorData.error === 'Credits不足') {
+          let errorMessage = errorData.message || "Credits不足"
+          
+          // 如果有credits信息，显示更详细的错误
+          if (errorData.creditsInfo) {
+            const info = errorData.creditsInfo
+            errorMessage = `${errorMessage}\n\n当前状态：\n- Credits余额: ${info.creditsBalance || 0}\n- 今日已用: ${info.dailyUsed || 0}/${(info.dailyUsed || 0) + (info.dailyRemaining || 0) || 200}\n- 本月已用: ${info.monthlyUsed || 0}/${(info.monthlyUsed || 0) + (info.monthlyRemaining || 0) || 2000}`
+          }
+          
+          toast.error(errorMessage, { duration: 5000 })
+        } else {
+          toast.error(errorData.message || "解析失败，请重试")
+        }
       }
     } catch (error) {
       console.error("Parse email error:", error)

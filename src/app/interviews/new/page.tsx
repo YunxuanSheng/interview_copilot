@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useAnalytics } from "@/hooks/useAnalytics"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +40,7 @@ export default function NewInterviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { trackFeatureUse, trackButtonClick } = useAnalytics()
   
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -492,6 +494,15 @@ export default function NewInterviewPage() {
         const result = await response.json()
         const recordId = result.data?.id
         const isUpdated = result.updated === true  // 是否是更新操作
+        
+        // 埋点：记录面试创建成功
+        trackFeatureUse('interview_create', {
+          recordId,
+          hasScheduleId: !!formData.scheduleId,
+          hasTranscript: !!formData.transcript,
+          questionsCount: questions.length,
+          isUpdate: isUpdated,
+        })
         
         // 如果是从转录任务创建的，标记任务为已读
         if (currentTaskId) {

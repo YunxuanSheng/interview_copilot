@@ -58,7 +58,7 @@ export async function getUserCredits(userId: string) {
  * 检查用户是否可以使用指定服务
  */
 export async function checkCredits(userId: string, serviceType: ServiceType): Promise<CreditsCheckResult> {
-  const userCredits = await getUserCredits(userId)
+  let userCredits = await getUserCredits(userId)
   const now = new Date()
   
   // 检查是否需要重置每日/每月计数
@@ -89,6 +89,8 @@ export async function checkCredits(userId: string, serviceType: ServiceType): Pr
         where: { userId },
         data: updateData
       })
+      // 重新获取最新的 credits 记录，确保 creditsBalance 是最新的
+      userCredits = await getUserCredits(userId)
     }
   }
 
@@ -98,6 +100,7 @@ export async function checkCredits(userId: string, serviceType: ServiceType): Pr
 
   // 检查各种限制
   if (userCredits.creditsBalance < serviceCost) {
+    console.log(`[checkCredits] Credits不足检查: userId=${userId}, creditsBalance=${userCredits.creditsBalance}, serviceCost=${serviceCost}, serviceType=${serviceType}`)
     return {
       canUse: false,
       reason: 'credits不足',
@@ -150,8 +153,37 @@ export async function deductCredits(userId: string, serviceType: ServiceType): P
   const serviceCost = CREDITS_COST[serviceType]
   
   try {
-    // 先确保用户credits记录存在
-    const userCredits = await getUserCredits(userId)
+    // 先确保用户credits记录存在，并检查/重置计数
+    let userCredits = await getUserCredits(userId)
+    const now = new Date()
+    
+    // 检查是否需要重置每日/每月计数（在扣除前先重置）
+    const needsDailyReset = isNewDay(userCredits.lastDailyReset, now)
+    const needsMonthlyReset = isNewMonth(userCredits.lastMonthlyReset, now)
+    
+    // 如果需要重置，先执行重置
+    if (needsDailyReset || needsMonthlyReset) {
+      const updateData: any = {}
+      
+      if (needsDailyReset) {
+        updateData.dailyUsed = 0
+        updateData.lastDailyReset = now
+      }
+      
+      if (needsMonthlyReset) {
+        updateData.monthlyUsed = 0
+        updateData.lastMonthlyReset = now
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.userCredits.update({
+          where: { userId },
+          data: updateData
+        })
+        // 重新获取最新的 credits 记录
+        userCredits = await getUserCredits(userId)
+      }
+    }
     
     // 检查credits是否足够（双重检查，防止并发问题）
     if (userCredits.creditsBalance < serviceCost) {
@@ -231,7 +263,7 @@ export async function deductCredits(userId: string, serviceType: ServiceType): P
  * 获取用户credits状态
  */
 export async function getCreditsStatus(userId: string) {
-  const userCredits = await getUserCredits(userId)
+  let userCredits = await getUserCredits(userId)
   const now = new Date()
   
   // 检查是否需要重置
@@ -261,6 +293,8 @@ export async function getCreditsStatus(userId: string) {
         where: { userId },
         data: updateData
       })
+      // 重新获取最新的 credits 记录，确保 creditsBalance 是最新的
+      userCredits = await getUserCredits(userId)
     }
   }
 
