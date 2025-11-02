@@ -297,8 +297,8 @@ export default function NewInterviewPage() {
     }
   }
 
-  // 任务完成回调，自动填充转录结果
-  const handleTaskComplete = useCallback((transcript: string) => {
+  // 任务完成回调，自动填充转录结果（目前未使用）
+  const _handleTaskComplete = useCallback((transcript: string) => {
     setFormData(prev => {
       // 如果已经有内容，不覆盖（避免重复填充）
       if (prev.transcript && prev.transcript.trim()) {
@@ -1287,7 +1287,7 @@ export default function NewInterviewPage() {
             </div>
             <div className="pl-4 space-y-2 text-sm text-gray-600">
               <p>1. 在面试复盘页面查看转录进度</p>
-              <p>2. 转录完成后，点击"去做AI分析"按钮</p>
+              <p>2. 转录完成后，点击&ldquo;去做AI分析&rdquo;按钮</p>
               <p>3. AI将自动分析您的面试表现并生成反馈</p>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">

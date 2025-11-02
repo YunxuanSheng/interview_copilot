@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, Calendar, Building, MessageSquare, Mic, Share2, Loader2, CheckCircle, Clock, AlertCircle, Sparkles, Filter, Trash2 } from "lucide-react"
+import { FileText, Search, Calendar, Building, MessageSquare, Mic, Share2, Loader2, CheckCircle, AlertCircle, Sparkles, Filter, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Link from "next/link"

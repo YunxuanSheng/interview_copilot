@@ -2,11 +2,10 @@
 
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, Plus, Search, Code, Cpu, MessageSquare, Star } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"

@@ -150,7 +150,7 @@ export default function InterviewDetailPage() {
                 // 不是有效的 JSON 对象，可能是 Markdown 文本，设置为 null 使用 SmartTextRenderer 显示
                 setAiAnalysis(null)
               }
-            } catch (jsonError) {
+            } catch {
               // JSON 解析失败，说明是 Markdown 文本格式，设置为 null 使用 SmartTextRenderer 显示
               setAiAnalysis(null)
             }
