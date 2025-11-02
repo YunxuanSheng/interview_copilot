@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   try {
     globalForPrisma.prisma.$disconnect().catch(() => {})
-  } catch (e) {
+  } catch {
     // 忽略断开连接错误
   }
   globalForPrisma.prisma = undefined

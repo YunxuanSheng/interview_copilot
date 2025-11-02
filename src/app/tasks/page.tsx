@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -41,13 +41,7 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
-  useEffect(() => {
-    if (session) {
-      fetchTasks()
-    }
-  }, [session, statusFilter])
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setIsLoading(true)
       const url = statusFilter !== 'all' 
@@ -67,7 +61,13 @@ export default function TasksPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [statusFilter])
+
+  useEffect(() => {
+    if (session) {
+      fetchTasks()
+    }
+  }, [session, fetchTasks])
 
   const getStatusConfig = (taskStatus: string) => {
     switch (taskStatus) {
@@ -254,7 +254,7 @@ export default function TasksPage() {
                               使用 FFmpeg 转换为标准格式：
                             </p>
                             <code className="text-xs bg-amber-100 px-2 py-1 rounded block mt-1">
-                              ffmpeg -i "{task.audioFileName}" -ac 1 -ar 16000 -sample_fmt s16 -f mp3 output.mp3
+                              ffmpeg -i &quot;{task.audioFileName}&quot; -ac 1 -ar 16000 -sample_fmt s16 -f mp3 output.mp3
                             </code>
                           </div>
                         )}

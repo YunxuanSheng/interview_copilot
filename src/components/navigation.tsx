@@ -24,7 +24,6 @@ import {
   X,
   FolderOpen,
   Share2,
-  ListTodo,
   Settings,
   Bell,
   Trash2
@@ -180,10 +179,10 @@ export default function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AI</span>
+              <div className="px-3 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm whitespace-nowrap">GoGoInterview</span>
               </div>
-              <span className="font-semibold text-gray-900">面试助理</span>
+              {/* <span className="font-semibold text-gray-900">GoGoInterview</span> */}
             </Link>
             
             {/* Desktop Navigation */}
